@@ -1,249 +1,176 @@
-# Seal Web App
+# Seal Web App — Windows Setup
 
-A modern web-based video/audio downloader interface for yt-dlp, inspired by and based on the [Seal Android app](https://github.com/JunkFood02/Seal) by JunkFood02. This application provides a user-friendly web interface for downloading videos and audio from YouTube, Vimeo, and many other supported platforms.
+One-click installer and launcher for [Seal Web App](https://github.com/Nadeesha-chathuranga/Seal-Web-App) on Windows.
 
-## Features
-
-### 🎥 Video/Audio Downloading
-- Download videos from 1000+ supported sites including YouTube, Vimeo, TikTok, and more
-- Audio-only downloads with format selection (MP3, M4A, FLAC, etc.)
-- Video quality selection (4K, 1080p, 720p, etc.)
-- Real-time download progress tracking
-
-### 🎛️ Advanced Options
-- Multiple format support
-- Quality presets and custom settings
-- Playlist support (coming soon)
-- Custom output templates (coming soon)
-
-### 🔄 Real-time Updates
-- Live download progress with Socket.IO
-- Real-time status updates
-- Error reporting and handling
-
-### 📱 Modern UI
-- Responsive Material Design interface
-- Dark/light theme support (coming soon)
-- Mobile-friendly design
-- Intuitive user experience
-
-### 📁 File Management
-- Download history with file details
-- File size and creation date tracking
-- Easy file deletion
-- Organized downloads folder
-
-## Tech Stack
-
-### Backend
-- **Node.js** with Express.js
-- **Socket.IO** for real-time communication
-- **yt-dlp** as the download engine
-- **Helmet** for security
-- **CORS** for cross-origin requests
-- **Morgan** for logging
-
-### Frontend
-- **React 18** with TypeScript
-- **Material-UI (MUI)** for components
-- **Socket.IO Client** for real-time updates
-- **Axios** for HTTP requests
-- **Emotion** for styling
-
-## Prerequisites
-
-Before running this application, make sure you have:
-
-1. **Node.js** (v16 or higher)
-2. **npm** or **yarn**
-3. **yt-dlp** installed and available in PATH
-
-### Installing yt-dlp
-
-#### On Ubuntu/Debian:
-```bash
-sudo apt update
-sudo apt install yt-dlp
-```
-
-#### On macOS:
-```bash
-brew install yt-dlp
-```
-
-#### On Windows:
-Download from [yt-dlp releases](https://github.com/yt-dlp/yt-dlp/releases) and add to PATH.
-
-## Installation
-
-1. **Clone or navigate to the project directory:**
-```bash
-cd "Seal Web App"
-```
-
-2. **Install root dependencies:**
-```bash
-npm install
-```
-
-3. **Install all dependencies (root + client):**
-```bash
-npm run install:all
-```
-
-## Development
-
-### Start the development server:
-```bash
-npm run dev
-```
-
-This will start:
-- Backend server on `http://localhost:5000`
-- Frontend development server on `http://localhost:3000`
-
-### Start servers individually:
-
-**Backend only:**
-```bash
-npm run server:dev
-```
-
-**Frontend only:**
-```bash
-npm run client:dev
-```
-
-## Production
-
-### Build the application:
-```bash
-npm run build
-```
-
-### Start production server:
-```bash
-npm start
-```
-
-The production server will serve the built React app and API on the same port (5000).
-
-## API Endpoints
-
-### Download Endpoints
-- `POST /api/download` - Start a download
-- `GET /api/download/list` - Get list of downloaded files
-- `DELETE /api/download/:filename` - Delete a downloaded file
-
-### Information Endpoints
-- `GET /api/info?url=<video_url>` - Get video information
-- `GET /api/info/playlist?url=<playlist_url>` - Get playlist information
-
-### Format Endpoints
-- `GET /api/formats?url=<video_url>` - Get available formats
-- `GET /api/formats/quality-presets` - Get quality presets
-
-## Socket.IO Events
-
-### Client → Server
-- `connection` - Client connects
-- `disconnect` - Client disconnects
-
-### Server → Client
-- `download-start` - Download started
-- `download-progress` - Download progress update
-- `download-complete` - Download completed
-- `download-error` - Download error occurred
-
-## Configuration
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
-
-```env
-PORT=5000
-NODE_ENV=development
-```
-
-### Download Directory
-
-Downloads are saved to `./downloads/` by default. The directory is automatically created if it doesn't exist.
-
-## Supported Sites
-
-This application supports the same sites as yt-dlp, including:
-
-- YouTube (videos, playlists, channels)
-- Vimeo
-- TikTok
-- Instagram
-- Twitter
-- Facebook
-- Twitch
-- And 1000+ more sites
-
-For a complete list, run: `yt-dlp --list-extractors`
-
-## Security Considerations
-
-- Input validation for URLs
-- File path sanitization
-- CORS configuration
-- Helmet security headers
-- No arbitrary command execution
-
-## Troubleshooting
-
-### Common Issues
-
-1. **yt-dlp not found:**
-   - Ensure yt-dlp is installed and in your PATH
-   - Test with: `yt-dlp --version`
-
-2. **Permission errors:**
-   - Check write permissions for the downloads directory
-   - Run with appropriate user permissions
-
-3. **Download failures:**
-   - Check if the URL is supported
-   - Verify internet connectivity
-   - Some sites may require authentication
-
-### Debug Mode
-
-Enable debug logging by setting:
-```bash
-DEBUG=seal-web-app:* npm run dev
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the WTFPL - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **[JunkFood02/Seal](https://github.com/JunkFood02/Seal)** - This project's idea and core functionality are based on this excellent Android application
-- **yt-dlp** team for the powerful download engine
-- **Material-UI** for the beautiful components
-- **React** and **Node.js** communities
-
-## Support
-
-If you encounter any issues or have questions:
-
-1. Check the [troubleshooting section](#troubleshooting)
-2. Search existing issues
-3. Create a new issue with detailed information
+Seal Web App is a web-based video downloader powered by yt-dlp and ffmpeg. This tool automates the entire setup process so you can start downloading videos in seconds.
 
 ---
 
-**Note:** This application is for personal use only. Please respect copyright laws and terms of service of the platforms you download content from.
+## Quick Start
+
+### Fresh Install (Easiest)
+
+1. Double-click `install.bat`
+2. Done — everything is installed automatically
+3. Run `start.bat` to launch the app
+
+### Fresh Install (Interactive)
+
+1. Run `install.ps1` (right-click -> "Run with PowerShell")
+2. Follow the prompts to choose location and options
+3. Run `start.bat` to launch the app
+
+### Fresh Install (Power User)
+
+```powershell
+# Fully automated with defaults
+.\install.ps1 -Auto
+
+# Custom location
+.\install.ps1 -Auto -Path "C:\MyApps\Seal-Web-App"
+
+# Custom location, no desktop shortcut
+.\install.ps1 -Auto -Path "C:\MyApps\Seal-Web-App" -NoShortcut
+```
+
+### Already Installed
+
+Just double-click `start.bat`.
+
+### Update to Latest Version
+
+Double-click `update.bat` to pull the latest code and update yt-dlp/ffmpeg.
+
+---
+
+## Files
+
+| File | Description |
+|---|---|
+| `install.bat` | One-click installer. Double-click to install everything automatically. |
+| `install.ps1` | Full installer with options. Supports `-Auto`, `-Path`, `-NoShortcut` parameters. |
+| `start.bat` | Launches the app. Checks ports, starts servers, opens browser automatically. |
+| `update.bat` | Updates everything — pulls latest code, reinstalls npm deps, upgrades yt-dlp and ffmpeg. |
+| `uninstall.bat` | Removes the app and optionally uninstalls tools. |
+| `seal-web-app-windows-setup.md` | Original manual installation guide. |
+
+---
+
+## What Gets Installed
+
+| Tool | Purpose | Installed By |
+|---|---|---|
+| [Git](https://git-scm.com) | Clone and update the repository | `winget install Git.Git` |
+| [Node.js](https://nodejs.org) (v22 LTS) | Run the Express backend and React frontend | `winget install OpenJS.NodeJS.LTS` |
+| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download videos from thousands of sites | `winget install yt-dlp` |
+| [ffmpeg](https://ffmpeg.org) | Merge audio/video streams and convert formats | `winget install Gyan.FFmpeg` |
+
+All tools are optional — if you already have them, the installer skips them automatically.
+
+---
+
+## Requirements
+
+- Windows 10 or 11
+- Internet connection (for initial install and video downloads)
+- [winget](https://github.com/microsoft/winget-cli) package manager (comes pre-installed on Windows 11)
+
+---
+
+## Installation Details
+
+### Default Install Location
+
+```
+%USERPROFILE%\Documents\GitHub\Seal-Web-App
+```
+
+During installation, you can choose a custom location or use the default.
+
+### Desktop Shortcut
+
+The installer offers to create a `Seal Web App.bat` shortcut on your Desktop for easy access.
+
+### Install Log
+
+After installation, a log file is saved to `install.log` in the project folder. Share this if you need help troubleshooting.
+
+### Installer Parameters
+
+| Parameter | Description | Example |
+|---|---|---|
+| `-Auto` | Skip all prompts, use defaults | `.\install.ps1 -Auto` |
+| `-Path "C:\..."` | Custom install location | `.\install.ps1 -Path "C:\MyDir"` |
+| `-NoShortcut` | Skip desktop shortcut creation | `.\install.ps1 -NoShortcut` |
+
+Parameters can be combined: `.\install.ps1 -Auto -Path "C:\Apps" -NoShortcut`
+
+---
+
+## Updating
+
+Run `update.bat` at any time to:
+
+- Pull the latest code from GitHub
+- Reinstall npm dependencies (in case new ones were added)
+- Upgrade yt-dlp (frequently updated for site compatibility)
+- Upgrade ffmpeg
+
+---
+
+## Uninstalling
+
+Run `uninstall.bat` to remove:
+
+- The Seal Web App project folder
+- The Desktop shortcut (if created)
+- Optionally: yt-dlp, ffmpeg, Node.js, Git
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| PowerShell blocks `install.ps1` | Use `install.bat` instead (no PowerShell restrictions), or right-click -> "Run with PowerShell" |
+| `yt-dlp not found` after install | Close and reopen your terminal, or run: `refreshenv` |
+| Port 3000 or 5000 already in use | Close the other application using that port, or the script will warn you before starting |
+| Downloads failing | Check the URL is supported by yt-dlp: `yt-dlp --list-extractors` |
+| Node.js version error | Install Node.js v22 LTS: `winget install OpenJS.NodeJS.LTS` |
+| Debug mode | Run: `set DEBUG=seal-web-app:* && npm run dev` |
+| Still stuck? | Check the [Seal Web App issues](https://github.com/Nadeesha-chathuranga/Seal-Web-App/issues) or share your `install.log` |
+
+---
+
+## Manual Installation
+
+If you prefer to install everything yourself, see [seal-web-app-windows-setup.md](seal-web-app-windows-setup.md) for the step-by-step guide.
+
+---
+
+## Credits
+
+This project is a fork of [Seal Web App](https://github.com/sh13y/Seal-Web-App) by [sh13y](https://github.com/sh13y). The original project provides a web-based video downloader powered by yt-dlp and ffmpeg.
+
+### Original Project
+
+| Tool | Repository |
+|---|---|
+| **Seal Web App** (original) | https://github.com/sh13y/Seal-Web-App |
+
+### Dependencies
+
+| Tool | Repository |
+|---|---|
+| **yt-dlp** | https://github.com/yt-dlp/yt-dlp |
+| **ffmpeg** | https://ffmpeg.org |
+| **Node.js** | https://nodejs.org |
+| **Git** | https://git-scm.com |
+
+Original project developed by: https://github.com/sh13y
+
+---
+
+## License
+
+Based on [Seal Web App](https://github.com/sh13y/Seal-Web-App) by sh13y. See the original repository for license information.

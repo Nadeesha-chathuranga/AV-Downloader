@@ -7,7 +7,7 @@ set "UNINSTALL_TOOLS="
 
 echo =====================================================
 echo   Seal Web App -- Uninstaller
-echo   https://github.com/sh13y/Seal-Web-App
+echo   https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo =====================================================
 echo.
 
@@ -137,10 +137,10 @@ echo =====================================================
 echo.
 echo   Thank you for using Seal Web App.
 echo   Developed by: https://github.com/sh13y
-echo   Repo: https://github.com/sh13y/Seal-Web-App
+echo   Repo: https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo.
 echo   If you enjoyed the app, consider giving a star:
-echo   https://github.com/sh13y/Seal-Web-App
+echo   https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo =====================================================
 echo.
 pause

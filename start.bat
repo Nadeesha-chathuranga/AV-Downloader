@@ -7,7 +7,7 @@ set "PORT_IN_USE="
 
 echo =====================================================
 echo   Seal Web App
-echo   https://github.com/sh13y/Seal-Web-App
+echo   https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo   Developed by: https://github.com/sh13y
 echo =====================================================
 echo.

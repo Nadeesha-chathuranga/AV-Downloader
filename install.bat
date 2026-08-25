@@ -6,7 +6,7 @@ set "SHORTCUT_FLAG="
 
 echo =====================================================
 echo   Seal Web App -- Quick Installer
-echo   https://github.com/sh13y/Seal-Web-App
+echo   https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo =====================================================
 echo.
 echo   This will automatically install everything you need:

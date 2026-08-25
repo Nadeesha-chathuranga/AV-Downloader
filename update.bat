@@ -5,7 +5,7 @@ set "PROJECT_DIR="
 
 echo =====================================================
 echo   Seal Web App -- Updater
-echo   https://github.com/sh13y/Seal-Web-App
+echo   https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo =====================================================
 echo.
 
@@ -114,12 +114,12 @@ echo.
 REM --- Done ---
 echo =====================================================
 echo   All updated!
-echo   Latest code: https://github.com/sh13y/Seal-Web-App
+echo   Latest code: https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo   Run start.bat to launch the app.
 echo =====================================================
 echo.
 echo   Developed by: https://github.com/sh13y
-echo   Repo: https://github.com/sh13y/Seal-Web-App
+echo   Repo: https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo =====================================================
 echo.
 pause
