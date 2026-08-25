@@ -86,11 +86,8 @@ REM --- Write client .env with actual backend port ---
 echo REACT_APP_SERVER_URL=http://localhost:%BACKEND_PORT%> "%PROJECT_DIR%\client\.env"
 
 cd /d "%PROJECT_DIR%\client"
-start "Seal Frontend - %FRONTEND_PORT%" cmd /c "set PORT=%FRONTEND_PORT% && npm start"
+start /min "Seal Frontend - %FRONTEND_PORT%" cmd /c "set PORT=%FRONTEND_PORT% && npm start"
 echo [..] Starting frontend on port %FRONTEND_PORT%...
-
-REM --- Open browser after a delay (frontend needs time to start) ---
-start "" cmd /c "timeout /t 8 /nobreak >nul && start http://localhost:%FRONTEND_PORT%"
 
 echo.
 echo =====================================================
