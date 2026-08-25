@@ -143,7 +143,13 @@ Run `uninstall.bat` to remove:
 
 ## Credits
 
-A web-based video downloader powered by yt-dlp and ffmpeg.
+This project is a fork of [Seal Web App](https://github.com/sh13y/Seal-Web-App) by [sh13y](https://github.com/sh13y). The original project provides a web-based video downloader powered by yt-dlp and ffmpeg.
+
+### Original Project
+
+| Tool | Repository |
+|---|---|
+| **Seal Web App** (original) | https://github.com/sh13y/Seal-Web-App |
 
 ### Dependencies
 
@@ -154,8 +160,10 @@ A web-based video downloader powered by yt-dlp and ffmpeg.
 | **Node.js** | https://nodejs.org |
 | **Git** | https://git-scm.com |
 
+Original project developed by: https://github.com/sh13y
+
 ---
 
 ## License
 
-See the repository for license information.
+Based on [Seal Web App](https://github.com/sh13y/Seal-Web-App) by sh13y. See the original repository for license information.

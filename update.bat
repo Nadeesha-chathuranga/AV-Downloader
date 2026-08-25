@@ -118,7 +118,7 @@ echo   Latest code: https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo   Run start.bat to launch the app.
 echo =====================================================
 echo.
-echo   Developed by: https://github.com/Nadeesha-chathuranga
+echo   Developed by: https://github.com/sh13y
 echo   Repo: https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo =====================================================
 echo.

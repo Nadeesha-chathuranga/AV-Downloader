@@ -136,7 +136,7 @@ echo   Uninstall complete!
 echo =====================================================
 echo.
 echo   Thank you for using Seal Web App.
-echo   Developed by: https://github.com/Nadeesha-chathuranga
+echo   Developed by: https://github.com/sh13y
 echo   Repo: https://github.com/Nadeesha-chathuranga/Seal-Web-App
 echo.
 echo   If you enjoyed the app, consider giving a star:
