@@ -1,34 +1,16 @@
 import React from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, Box } from '@mui/material';
+import { Container, Box } from '@mui/material';
 import Header from './components/Header';
 import DownloadForm from './components/DownloadForm';
 import DownloadProgress from './components/DownloadProgress';
 import DownloadHistory from './components/DownloadHistory';
 import { SocketProvider } from './contexts/SocketContext';
+import { ThemeProvider } from './theme/ThemeContext';
 import './App.css';
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-    background: {
-      default: '#f5f5f5',
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-  },
-});
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ThemeProvider>
       <SocketProvider>
         <div className="App">
           <Header />

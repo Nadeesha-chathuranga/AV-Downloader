@@ -16,15 +16,17 @@ import {
   Alert,
   Collapse,
   IconButton,
-  Tooltip
+  Tooltip,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
   Info as InfoIcon,
   ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon
+  ExpandLess as ExpandLessIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useAppTheme } from '../theme/ThemeContext';
 
 interface VideoInfo {
   id: string;
@@ -59,14 +61,15 @@ const DownloadForm: React.FC = () => {
     video: QualityPreset[];
     audio: QualityPreset[];
   }>({ video: [], audio: [] });
+  const { currentTheme } = useAppTheme();
 
-  const apiUrl = process.env.NODE_ENV === 'production' 
-    ? '/api' 
-    : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
+  const apiUrl =
+    process.env.NODE_ENV === 'production'
+      ? '/api'
+      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const fetchQualityPresets = useCallback(async () => {
     try {
-      // Mock data for development when backend is not available
       if (process.env.NODE_ENV === 'development') {
         const mockPresets = {
           video: [
@@ -77,7 +80,7 @@ const DownloadForm: React.FC = () => {
             { value: '480', label: 'SD (480p)', description: 'Standard Definition' },
             { value: '360', label: 'Low (360p)', description: 'Low Quality' },
             { value: 'best', label: 'Best Available', description: 'Highest quality available' },
-            { value: 'worst', label: 'Worst Available', description: 'Lowest quality available' }
+            { value: 'worst', label: 'Worst Available', description: 'Lowest quality available' },
           ],
           audio: [
             { value: 'mp3', label: 'MP3', description: 'Standard audio format' },
@@ -85,8 +88,8 @@ const DownloadForm: React.FC = () => {
             { value: 'wav', label: 'WAV', description: 'Uncompressed audio' },
             { value: 'flac', label: 'FLAC', description: 'Lossless audio' },
             { value: 'ogg', label: 'OGG', description: 'Open source audio' },
-            { value: 'best', label: 'Best Available', description: 'Highest quality available' }
-          ]
+            { value: 'best', label: 'Best Available', description: 'Highest quality available' },
+          ],
         };
         setQualityPresets(mockPresets);
         return;
@@ -96,17 +99,16 @@ const DownloadForm: React.FC = () => {
       setQualityPresets(response.data);
     } catch (error) {
       console.warn('Backend not available, using mock quality presets');
-      // Fallback to mock data
       const mockPresets = {
         video: [
           { value: 'best', label: 'Best Available', description: 'Highest quality available' },
           { value: '1080', label: 'Full HD (1080p)', description: 'High Definition' },
-          { value: '720', label: 'HD (720p)', description: 'High Definition' }
+          { value: '720', label: 'HD (720p)', description: 'High Definition' },
         ],
         audio: [
           { value: 'mp3', label: 'MP3', description: 'Standard audio format' },
-          { value: 'm4a', label: 'M4A', description: 'High quality audio' }
-        ]
+          { value: 'm4a', label: 'M4A', description: 'High quality audio' },
+        ],
       };
       setQualityPresets(mockPresets);
     }
@@ -127,25 +129,22 @@ const DownloadForm: React.FC = () => {
     setVideoInfo(null);
 
     try {
-      const response = await axios.get(`${apiUrl}/info`, {
-        params: { url }
-      });
+      const response = await axios.get(`${apiUrl}/info`, { params: { url } });
       setVideoInfo(response.data);
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-        setError('Backend server not available. Please start the backend server to use video info features.');
-        // Show demo video info
+        setError('Backend server not available. Please start the backend server.');
         const mockVideoInfo = {
           id: 'demo123',
-          title: 'Demo Video - Seal Web App Preview',
-          description: 'This is a demo video showing the Seal Web App interface. The backend server needs to be running for actual video information.',
+          title: 'Demo Video - Universal Downloader Preview',
+          description: 'This is a demo video. The backend server needs to be running for actual video information.',
           duration: 180,
-          uploader: 'Seal Web App Demo',
+          uploader: 'Universal Downloader Demo',
           upload_date: '20250826',
           view_count: 1000,
           thumbnail: 'https://via.placeholder.com/320x180/1976d2/ffffff?text=Demo+Video',
           webpage_url: url,
-          extractor: 'demo'
+          extractor: 'demo',
         };
         setVideoInfo(mockVideoInfo);
       } else {
@@ -171,7 +170,7 @@ const DownloadForm: React.FC = () => {
         url,
         format: audioOnly ? format : undefined,
         quality: !audioOnly ? quality : undefined,
-        audioOnly
+        audioOnly,
       });
 
       if (response.data.success) {
@@ -181,7 +180,7 @@ const DownloadForm: React.FC = () => {
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-        setError('Backend server not available. To enable downloads: 1) Install yt-dlp, 2) Run "npm install" in the root directory, 3) Start with "npm run dev"');
+        setError('Backend server not available. Install yt-dlp, run "npm install", then "npm run dev".');
       } else {
         setError(error.response?.data?.error || 'Download failed');
       }
@@ -194,7 +193,6 @@ const DownloadForm: React.FC = () => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
@@ -202,43 +200,95 @@ const DownloadForm: React.FC = () => {
   };
 
   return (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
-        <Typography variant="h5" gutterBottom>
-          Download Video/Audio
-        </Typography>
+    <Card
+      className="glass-card"
+      sx={{
+        mb: 3,
+        animation: 'fadeIn 0.5s ease',
+        overflow: 'visible',
+      }}
+    >
+      <CardContent sx={{ p: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${currentTheme.colors.primary}33, ${currentTheme.colors.secondary}33)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <DownloadIcon sx={{ color: currentTheme.colors.primary, fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+              Download
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Paste a URL to get started
+            </Typography>
+          </Box>
+        </Box>
 
         <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
             label="Video URL"
-            placeholder="Enter video URL (e.g., https://vimeo.com/123456789)"
+            placeholder="https://www.youtube.com/watch?v=..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            margin="normal"
+            InputProps={{
+              startAdornment: (
+                <LinkIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: `${currentTheme.colors.surfaceAlt}88`,
+              },
+            }}
           />
-          
-          <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+
+          <Box sx={{ mt: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
             <Button
               variant="outlined"
               startIcon={<InfoIcon />}
               onClick={fetchVideoInfo}
               disabled={loading || !url.trim()}
+              sx={{
+                borderColor: currentTheme.colors.border,
+                color: 'text.primary',
+                '&:hover': {
+                  borderColor: currentTheme.colors.primary,
+                  background: `${currentTheme.colors.primary}11`,
+                },
+              }}
             >
               Get Info
             </Button>
-            
+
             <Button
               variant="contained"
               startIcon={<DownloadIcon />}
               onClick={handleDownload}
               disabled={loading || !url.trim()}
+              sx={{ px: 4 }}
             >
               Download
             </Button>
 
-            <Tooltip title="Advanced Options">
-              <IconButton onClick={() => setShowAdvanced(!showAdvanced)}>
+            <Tooltip title={showAdvanced ? 'Hide options' : 'Show options'}>
+              <IconButton
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                sx={{
+                  color: 'text.secondary',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { color: currentTheme.colors.primary },
+                }}
+              >
                 {showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </IconButton>
             </Tooltip>
@@ -246,23 +296,43 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         <Collapse in={showAdvanced}>
-          <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-            <Typography variant="h6" gutterBottom>
-              Download Options
+          <Box
+            sx={{
+              mb: 3,
+              p: 2.5,
+              borderRadius: 3,
+              background: `${currentTheme.colors.surfaceAlt}66`,
+              border: `1px solid ${currentTheme.colors.border}`,
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+              Options
             </Typography>
-            
+
             <FormControlLabel
               control={
                 <Switch
                   checked={audioOnly}
                   onChange={(e) => setAudioOnly(e.target.checked)}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: currentTheme.colors.primary,
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: currentTheme.colors.primary,
+                    },
+                  }}
                 />
               }
-              label="Audio Only"
+              label={
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Audio Only
+                </Typography>
+              }
             />
 
             {audioOnly ? (
-              <FormControl fullWidth margin="normal">
+              <FormControl fullWidth sx={{ mt: 2 }}>
                 <InputLabel>Audio Format</InputLabel>
                 <Select
                   value={format}
@@ -272,8 +342,10 @@ const DownloadForm: React.FC = () => {
                   {qualityPresets.audio.map((preset) => (
                     <MenuItem key={preset.value} value={preset.value}>
                       <Box>
-                        <Typography variant="body1">{preset.label}</Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {preset.label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {preset.description}
                         </Typography>
                       </Box>
@@ -282,7 +354,7 @@ const DownloadForm: React.FC = () => {
                 </Select>
               </FormControl>
             ) : (
-              <FormControl fullWidth margin="normal">
+              <FormControl fullWidth sx={{ mt: 2 }}>
                 <InputLabel>Video Quality</InputLabel>
                 <Select
                   value={quality}
@@ -292,8 +364,10 @@ const DownloadForm: React.FC = () => {
                   {qualityPresets.video.map((preset) => (
                     <MenuItem key={preset.value} value={preset.value}>
                       <Box>
-                        <Typography variant="body1">{preset.label}</Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {preset.label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {preset.description}
                         </Typography>
                       </Box>
@@ -306,46 +380,97 @@ const DownloadForm: React.FC = () => {
         </Collapse>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert
+            severity="error"
+            sx={{
+              mb: 2,
+              borderRadius: 3,
+              background: `${currentTheme.colors.error}15`,
+              border: `1px solid ${currentTheme.colors.error}33`,
+            }}
+          >
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
+          <Alert
+            severity="success"
+            sx={{
+              mb: 2,
+              borderRadius: 3,
+              background: `${currentTheme.colors.success}15`,
+              border: `1px solid ${currentTheme.colors.success}33`,
+            }}
+          >
             {success}
           </Alert>
         )}
 
         {videoInfo && (
-          <Card variant="outlined" sx={{ mt: 2 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Video Information
-              </Typography>
-              
-              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Card
+            sx={{
+              mt: 2,
+              background: `${currentTheme.colors.surfaceAlt}44`,
+              border: `1px solid ${currentTheme.colors.border}`,
+              borderRadius: 3,
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', gap: 2.5 }}>
                 {videoInfo.thumbnail && (
-                  <img
+                  <Box
+                    component="img"
                     src={videoInfo.thumbnail}
                     alt="Video thumbnail"
-                    style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 4 }}
+                    sx={{
+                      width: 160,
+                      height: 90,
+                      objectFit: 'cover',
+                      borderRadius: 2,
+                      flexShrink: 0,
+                    }}
                   />
                 )}
-                
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">
+
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>
                     {videoInfo.title}
                   </Typography>
-                  
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
                     by {videoInfo.uploader}
                   </Typography>
-                  
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                    <Chip size="small" label={`Duration: ${formatDuration(videoInfo.duration)}`} />
-                    <Chip size="small" label={`Views: ${videoInfo.view_count?.toLocaleString()}`} />
-                    <Chip size="small" label={videoInfo.extractor} />
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      size="small"
+                      label={formatDuration(videoInfo.duration)}
+                      sx={{
+                        background: `${currentTheme.colors.primary}22`,
+                        color: currentTheme.colors.primary,
+                        fontWeight: 600,
+                        borderRadius: 1.5,
+                      }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`${videoInfo.view_count?.toLocaleString()} views`}
+                      sx={{
+                        background: `${currentTheme.colors.secondary}22`,
+                        color: currentTheme.colors.secondary,
+                        fontWeight: 600,
+                        borderRadius: 1.5,
+                      }}
+                    />
+                    <Chip
+                      size="small"
+                      label={videoInfo.extractor}
+                      sx={{
+                        background: `${currentTheme.colors.info}22`,
+                        color: currentTheme.colors.info,
+                        fontWeight: 600,
+                        borderRadius: 1.5,
+                      }}
+                    />
                   </Box>
                 </Box>
               </Box>

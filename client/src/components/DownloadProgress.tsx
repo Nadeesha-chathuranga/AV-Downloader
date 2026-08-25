@@ -10,153 +10,235 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Alert
+  Alert,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  HourglassEmpty as HourglassEmptyIcon
+  HourglassEmpty as HourglassEmptyIcon,
 } from '@mui/icons-material';
 import { useSocket } from '../contexts/SocketContext';
+import { useAppTheme } from '../theme/ThemeContext';
 
 const DownloadProgress: React.FC = () => {
   const { downloads } = useSocket();
+  const { currentTheme } = useAppTheme();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'starting':
-        return <HourglassEmptyIcon color="info" />;
+        return <HourglassEmptyIcon sx={{ color: currentTheme.colors.info, fontSize: 20 }} />;
       case 'downloading':
-        return <DownloadIcon color="primary" />;
+        return <DownloadIcon sx={{ color: currentTheme.colors.primary, fontSize: 20 }} />;
       case 'completed':
-        return <CheckCircleIcon color="success" />;
+        return <CheckCircleIcon sx={{ color: currentTheme.colors.success, fontSize: 20 }} />;
       case 'error':
-        return <ErrorIcon color="error" />;
+        return <ErrorIcon sx={{ color: currentTheme.colors.error, fontSize: 20 }} />;
       default:
-        return <HourglassEmptyIcon />;
+        return <HourglassEmptyIcon sx={{ fontSize: 20 }} />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'starting':
-        return 'info';
+        return { bg: `${currentTheme.colors.info}22`, color: currentTheme.colors.info };
       case 'downloading':
-        return 'primary';
+        return { bg: `${currentTheme.colors.primary}22`, color: currentTheme.colors.primary };
       case 'completed':
-        return 'success';
+        return { bg: `${currentTheme.colors.success}22`, color: currentTheme.colors.success };
       case 'error':
-        return 'error';
+        return { bg: `${currentTheme.colors.error}22`, color: currentTheme.colors.error };
       default:
-        return 'default';
+        return { bg: `${currentTheme.colors.textSecondary}22`, color: currentTheme.colors.textSecondary };
     }
   };
 
-  const activeDownloads = downloads.filter(d => 
-    d.status === 'starting' || d.status === 'downloading'
-  );
+  const activeDownloads = downloads.filter((d) => d.status === 'starting' || d.status === 'downloading');
 
-  const recentDownloads = downloads.filter(d => 
-    d.status === 'completed' || d.status === 'error'
-  ).slice(-5);
+  const recentDownloads = downloads.filter((d) => d.status === 'completed' || d.status === 'error').slice(-5);
 
   if (downloads.length === 0) {
     return null;
   }
 
   return (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
-        <Typography variant="h5" gutterBottom>
-          Download Progress
-        </Typography>
+    <Card
+      className="glass-card"
+      sx={{
+        mb: 3,
+        animation: 'fadeIn 0.5s ease 0.1s both',
+      }}
+    >
+      <CardContent sx={{ p: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${currentTheme.colors.primary}33, ${currentTheme.colors.info}33)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <DownloadIcon sx={{ color: currentTheme.colors.primary, fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+              Progress
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {activeDownloads.length} active, {recentDownloads.length} recent
+            </Typography>
+          </Box>
+        </Box>
 
         {activeDownloads.length > 0 && (
           <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                fontSize: '0.7rem',
+                mb: 1.5,
+                display: 'block',
+              }}
+            >
               Active Downloads
             </Typography>
-            
-            {activeDownloads.map((download) => (
-              <Box key={download.id} sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  {getStatusIcon(download.status)}
-                  <Box sx={{ ml: 1, flexGrow: 1 }}>
-                    <Typography variant="body2" noWrap>
-                      {download.filename || 'Preparing download...'}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {download.url}
-                    </Typography>
-                  </Box>
-                  <Chip 
-                    label={download.status} 
-                    size="small" 
-                    color={getStatusColor(download.status) as any}
-                  />
-                </Box>
-                
-                {download.status === 'downloading' && (
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Box sx={{ width: '100%', mr: 1 }}>
-                      <LinearProgress 
-                        variant="determinate" 
-                        value={download.progress} 
-                      />
+
+            {activeDownloads.map((download) => {
+              const statusStyle = getStatusColor(download.status);
+              return (
+                <Box
+                  key={download.id}
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 3,
+                    background: `${currentTheme.colors.surfaceAlt}44`,
+                    border: `1px solid ${currentTheme.colors.border}`,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    {getStatusIcon(download.status)}
+                    <Box sx={{ ml: 1.5, flexGrow: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                        {download.filename || 'Preparing download...'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                        {download.url}
+                      </Typography>
                     </Box>
-                    <Box sx={{ minWidth: 35 }}>
-                      <Typography variant="body2" color="text.secondary">
+                    <Chip
+                      label={download.status}
+                      size="small"
+                      sx={{
+                        background: statusStyle.bg,
+                        color: statusStyle.color,
+                        fontWeight: 600,
+                        borderRadius: 1.5,
+                        fontSize: '0.7rem',
+                      }}
+                    />
+                  </Box>
+
+                  {download.status === 'downloading' && (
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{ width: '100%', mr: 1.5 }}>
+                        <LinearProgress variant="determinate" value={download.progress} />
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: currentTheme.colors.primary, minWidth: 40, textAlign: 'right' }}>
                         {Math.round(download.progress)}%
                       </Typography>
                     </Box>
-                  </Box>
-                )}
+                  )}
 
-                {download.error && (
-                  <Alert severity="error" sx={{ mt: 1 }}>
-                    {download.error}
-                  </Alert>
-                )}
-              </Box>
-            ))}
+                  {download.error && (
+                    <Alert
+                      severity="error"
+                      sx={{
+                        mt: 1,
+                        borderRadius: 2,
+                        background: `${currentTheme.colors.error}15`,
+                        border: `1px solid ${currentTheme.colors.error}33`,
+                        py: 0,
+                      }}
+                    >
+                      {download.error}
+                    </Alert>
+                  )}
+                </Box>
+              );
+            })}
           </Box>
         )}
 
         {recentDownloads.length > 0 && (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Recent Downloads
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                fontSize: '0.7rem',
+                mb: 1.5,
+                display: 'block',
+              }}
+            >
+              Recent
             </Typography>
-            
-            <List dense>
-              {recentDownloads.map((download) => (
-                <ListItem key={download.id}>
-                  <ListItemIcon>
-                    {getStatusIcon(download.status)}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={download.filename || 'Unknown file'}
-                    secondary={
-                      <Box>
-                        <Typography variant="caption" component="div">
-                          {download.url}
+
+            <List dense disablePadding>
+              {recentDownloads.map((download) => {
+                const statusStyle = getStatusColor(download.status);
+                return (
+                  <ListItem
+                    key={download.id}
+                    sx={{
+                      mb: 1,
+                      borderRadius: 2,
+                      background: `${currentTheme.colors.surfaceAlt}33`,
+                      border: `1px solid ${currentTheme.colors.border}`,
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      {getStatusIcon(download.status)}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                          {download.filename || 'Unknown file'}
                         </Typography>
-                        {download.error && (
-                          <Typography variant="caption" color="error">
-                            Error: {download.error}
-                          </Typography>
-                        )}
-                      </Box>
-                    }
-                  />
-                  <Chip 
-                    label={download.status} 
-                    size="small" 
-                    color={getStatusColor(download.status) as any}
-                  />
-                </ListItem>
-              ))}
+                      }
+                      secondary={
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                          {download.error ? `Error: ${download.error}` : download.url}
+                        </Typography>
+                      }
+                    />
+                    <Chip
+                      label={download.status}
+                      size="small"
+                      sx={{
+                        background: statusStyle.bg,
+                        color: statusStyle.color,
+                        fontWeight: 600,
+                        borderRadius: 1.5,
+                        fontSize: '0.7rem',
+                      }}
+                    />
+                  </ListItem>
+                );
+              })}
             </List>
           </Box>
         )}
