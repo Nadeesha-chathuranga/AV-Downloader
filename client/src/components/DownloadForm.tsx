@@ -31,6 +31,7 @@ import {
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
 import PlaylistPanel from './PlaylistPanel';
+import FormatSelector, { FormatEntry } from './FormatSelector';
 
 interface VideoInfo {
   id: string;
@@ -96,6 +97,12 @@ const DownloadForm: React.FC = () => {
   const [customArgs, setCustomArgs] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [allTemplates, setAllTemplates] = useState<Template[]>([]);
+  const [videoFormats, setVideoFormats] = useState<FormatEntry[]>([]);
+  const [audioFormats, setAudioFormats] = useState<FormatEntry[]>([]);
+  const [allFormats, setAllFormats] = useState<FormatEntry[]>([]);
+  const [recommendedVideo, setRecommendedVideo] = useState<string | null>(null);
+  const [recommendedAudio, setRecommendedAudio] = useState<string | null>(null);
+  const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
   const [qualityPresets, setQualityPresets] = useState<{
     video: QualityPreset[];
     audio: QualityPreset[];
@@ -197,13 +204,31 @@ const DownloadForm: React.FC = () => {
     setError('');
     setVideoInfo(null);
     setPlaylistInfo(null);
+    setVideoFormats([]);
+    setAudioFormats([]);
+    setAllFormats([]);
+    setSelectedFormatId(null);
     try {
       if (isPlaylist) {
         const response = await axios.get(`${apiUrl}/info/playlist`, { params: { url } });
         setPlaylistInfo(response.data.entries);
       } else {
-        const response = await axios.get(`${apiUrl}/info`, { params: { url } });
-        setVideoInfo(response.data);
+        const infoResponse = await axios.get(`${apiUrl}/info`, { params: { url } });
+        setVideoInfo(infoResponse.data);
+
+        try {
+          const fmtResponse = await axios.get(`${apiUrl}/formats`, { params: { url } });
+          setVideoFormats(fmtResponse.data.video_formats || []);
+          setAudioFormats(fmtResponse.data.audio_formats || []);
+          setAllFormats(fmtResponse.data.all_formats || []);
+          setRecommendedVideo(fmtResponse.data.recommended_video || null);
+          setRecommendedAudio(fmtResponse.data.recommended_audio || null);
+          if (fmtResponse.data.recommended_video) {
+            setSelectedFormatId(fmtResponse.data.recommended_video);
+          }
+        } catch {
+          // Formats fetch failed, non-critical
+        }
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -245,12 +270,17 @@ const DownloadForm: React.FC = () => {
         quality: !audioOnly ? quality : undefined,
         audioOnly,
         customArgs: customArgs.trim() || undefined,
+        formatId: selectedFormatId || undefined,
       });
       if (response.data.success) {
         setSuccess('Download started successfully!');
         setUrl('');
         setVideoInfo(null);
         setPlaylistInfo(null);
+        setVideoFormats([]);
+        setAudioFormats([]);
+        setAllFormats([]);
+        setSelectedFormatId(null);
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -548,6 +578,18 @@ const DownloadForm: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
+        )}
+
+        {allFormats.length > 0 && (
+          <FormatSelector
+            videoFormats={videoFormats}
+            audioFormats={audioFormats}
+            allFormats={allFormats}
+            recommendedVideo={recommendedVideo}
+            recommendedAudio={recommendedAudio}
+            selectedFormatId={selectedFormatId}
+            onSelectFormat={setSelectedFormatId}
+          />
         )}
       </CardContent>
     </Card>

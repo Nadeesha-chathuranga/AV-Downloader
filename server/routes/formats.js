@@ -11,14 +11,13 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'URL parameter is required' });
     }
 
-    // Basic URL validation - let yt-dlp handle specific format validation
     const urlPattern = /^https?:\/\/.+/i;
     if (!urlPattern.test(url)) {
       return res.status(400).json({ error: 'Invalid URL format. Please provide a valid HTTP/HTTPS URL.' });
     }
 
     const args = [
-      '--list-formats',
+      '--dump-json',
       '--no-playlist',
       url
     ];
@@ -38,68 +37,76 @@ router.get('/', async (req, res) => {
     ytdlp.on('close', (code) => {
       if (code === 0) {
         try {
-          // Parse the format list
-          const lines = output.split('\n');
-          const formats = [];
-          let startParsing = false;
+          const info = JSON.parse(output);
+          const formats = (info.formats || []).map(f => {
+            const hasVideo = f.vcodec && f.vcodec !== 'none';
+            const hasAudio = f.acodec && f.acodec !== 'none';
+            let type = 'unknown';
+            if (hasVideo && hasAudio) type = 'video';
+            else if (hasVideo) type = 'video-only';
+            else if (hasAudio) type = 'audio';
 
-          for (const line of lines) {
-            if (line.includes('format code') && line.includes('extension')) {
-              startParsing = true;
-              continue;
-            }
-            
-            if (startParsing && line.trim()) {
-              const parts = line.trim().split(/\s+/);
-              if (parts.length >= 3) {
-                const formatCode = parts[0];
-                const extension = parts[1];
-                const resolution = parts[2];
-                const note = parts.slice(3).join(' ');
-                
-                formats.push({
-                  format_code: formatCode,
-                  extension: extension,
-                  resolution: resolution,
-                  note: note,
-                  type: extension.includes('m4a') || extension.includes('mp3') || 
-                        extension.includes('wav') || extension.includes('ogg') ? 'audio' : 'video'
-                });
-              }
-            }
-          }
+            return {
+              format_id: f.format_id,
+              ext: f.ext,
+              resolution: f.height ? `${f.height}p` : (f.resolution || 'audio'),
+              height: f.height || null,
+              fps: f.fps || null,
+              vcodec: f.vcodec || null,
+              acodec: f.acodec || null,
+              filesize: f.filesize || f.filesize_approx || null,
+              tbr: f.tbr || null,
+              vbr: f.vbr || null,
+              abr: f.abr || null,
+              note: f.format_note || '',
+              type,
+            };
+          });
 
-          // Group formats by type
-          const videoFormats = formats.filter(f => f.type === 'video');
+          const videoFormats = formats.filter(f => f.type === 'video' || f.type === 'video-only');
           const audioFormats = formats.filter(f => f.type === 'audio');
+
+          const bestVideo = videoFormats.reduce((best, f) => {
+            if (!best || (f.height && (!best.height || f.height > best.height))) return f;
+            if (f.tbr && (!best.tbr || f.tbr > best.tbr)) return f;
+            return best;
+          }, null);
+
+          const bestAudio = audioFormats.reduce((best, f) => {
+            if (!best || (f.abr && (!best.abr || f.abr > best.abr))) return f;
+            if (f.tbr && (!best.tbr || f.tbr > best.tbr)) return f;
+            return best;
+          }, null);
 
           res.json({
             video_formats: videoFormats,
             audio_formats: audioFormats,
-            all_formats: formats
+            all_formats: formats,
+            recommended_video: bestVideo ? bestVideo.format_id : null,
+            recommended_audio: bestAudio ? bestAudio.format_id : null,
           });
 
         } catch (parseError) {
-          console.error('Error parsing formats:', parseError);
-          res.status(500).json({ 
+          console.error('Error parsing format JSON:', parseError);
+          res.status(500).json({
             error: 'Failed to parse format information',
-            details: parseError.message 
+            details: parseError.message
           });
         }
       } else {
         console.error('yt-dlp formats error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Failed to get format information',
-          details: error 
+          details: error
         });
       }
     });
 
   } catch (error) {
     console.error('Format extraction error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to extract format information',
-      details: error.message 
+      details: error.message
     });
   }
 });

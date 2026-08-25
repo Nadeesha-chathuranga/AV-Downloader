@@ -49,7 +49,7 @@ const validateCustomArgs = (argString) => {
 // POST /api/download
 router.post('/', async (req, res) => {
   try {
-    const { url, format, quality, audioOnly, outputPath, customArgs } = req.body;
+    const { url, format, quality, audioOnly, outputPath, customArgs, formatId } = req.body;
     const io = req.app.get('socketio');
 
     if (!url) {
@@ -81,6 +81,12 @@ router.post('/', async (req, res) => {
     
     if (customArgs) {
       args.push(...parseCustomArgs(customArgs));
+    } else if (formatId) {
+      args.push('-f', formatId);
+      if (audioOnly) {
+        args.push('--extract-audio');
+        args.push('--audio-format', format || 'mp3');
+      }
     } else if (audioOnly) {
       args.push('-f', 'bestaudio/best');
       args.push('--extract-audio');
