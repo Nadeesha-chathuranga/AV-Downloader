@@ -165,6 +165,12 @@ const DownloadForm: React.FC = () => {
   const [recommendedVideo, setRecommendedVideo] = useState<string | null>(null);
   const [recommendedAudio, setRecommendedAudio] = useState<string | null>(null);
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
+  const [embedMetadata, setEmbedMetadata] = useState(true);
+  const [embedThumbnail, setEmbedThumbnail] = useState(true);
+  const [writeSubs, setWriteSubs] = useState(false);
+  const [embedSubs, setEmbedSubs] = useState(true);
+  const [subLang, setSubLang] = useState('en');
+  const [subFormat, setSubFormat] = useState('srt');
   const [qualityPresets, setQualityPresets] = useState<{
     video: QualityPreset[];
     audio: QualityPreset[];
@@ -333,6 +339,12 @@ const DownloadForm: React.FC = () => {
         audioOnly,
         customArgs: customArgs.trim() || undefined,
         formatId: selectedFormatId || undefined,
+        embedMetadata,
+        embedThumbnail,
+        writeSubs,
+        embedSubs,
+        subLang,
+        subFormat,
       });
       if (response.data.success) {
         setSuccess('Download started successfully!');
@@ -367,6 +379,12 @@ const DownloadForm: React.FC = () => {
         format: audioOnly ? format : undefined,
         quality: !audioOnly ? quality : undefined,
         audioOnly,
+        embedMetadata,
+        embedThumbnail,
+        writeSubs,
+        embedSubs,
+        subLang,
+        subFormat,
       });
       if (response.data.success) {
         setSuccess(`Playlist download started: ${response.data.total} videos queued`);
@@ -566,6 +584,89 @@ const DownloadForm: React.FC = () => {
                 </Select>
               </FormControl>
             )}
+
+            <Divider sx={{ my: 2.5, borderColor: currentTheme.colors.border }} />
+
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+              Metadata & Subtitles
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={embedMetadata}
+                    onChange={(e) => setEmbedMetadata(e.target.checked)}
+                    size="small"
+                    sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.success }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.success } }}
+                  />
+                }
+                label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>Embed Metadata</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={embedThumbnail}
+                    onChange={(e) => setEmbedThumbnail(e.target.checked)}
+                    size="small"
+                    sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.success }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.success } }}
+                  />
+                }
+                label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>Embed Thumbnail</Typography>}
+              />
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={writeSubs}
+                      onChange={(e) => setWriteSubs(e.target.checked)}
+                      size="small"
+                      sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.info }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.info } }}
+                    />
+                  }
+                  label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>Include Subtitles</Typography>}
+                />
+              </Box>
+
+              {writeSubs && (
+                <Box sx={{ display: 'flex', gap: 1.5, ml: 5, mt: 0.5 }}>
+                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                    <InputLabel>Language</InputLabel>
+                    <Select value={subLang} label="Language" onChange={(e) => setSubLang(e.target.value)}>
+                      <MenuItem value="en">English</MenuItem>
+                      <MenuItem value="es">Spanish</MenuItem>
+                      <MenuItem value="fr">French</MenuItem>
+                      <MenuItem value="de">German</MenuItem>
+                      <MenuItem value="ja">Japanese</MenuItem>
+                      <MenuItem value="ko">Korean</MenuItem>
+                      <MenuItem value="zh">Chinese</MenuItem>
+                      <MenuItem value="si">Sinhala</MenuItem>
+                      <MenuItem value="auto">Auto-detect</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 80 }}>
+                    <InputLabel>Format</InputLabel>
+                    <Select value={subFormat} label="Format" onChange={(e) => setSubFormat(e.target.value)}>
+                      <MenuItem value="srt">SRT</MenuItem>
+                      <MenuItem value="vtt">VTT</MenuItem>
+                      <MenuItem value="ass">ASS</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={embedSubs}
+                        onChange={(e) => setEmbedSubs(e.target.checked)}
+                        size="small"
+                        sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.info }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.info } }}
+                      />
+                    }
+                    label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>Embed in video</Typography>}
+                  />
+                </Box>
+              )}
+            </Box>
 
             <Divider sx={{ my: 2.5, borderColor: currentTheme.colors.border }} />
 

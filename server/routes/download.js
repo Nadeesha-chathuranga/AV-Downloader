@@ -143,7 +143,8 @@ const buildArgs = (options) => {
 // POST /api/download
 router.post('/', async (req, res) => {
   try {
-    const { url, format, quality, audioOnly, outputPath, customArgs, formatId } = req.body;
+    const { url, format, quality, audioOnly, outputPath, customArgs, formatId,
+      embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat } = req.body;
     const io = req.app.get('socketio');
 
     if (!url) return res.status(400).json({ error: 'URL is required' });
@@ -183,6 +184,27 @@ router.post('/', async (req, res) => {
       }
     }
 
+    if (audioOnly && embedMetadata !== false) {
+      args.push('--embed-metadata');
+      args.push('--embed-thumbnail');
+      args.push('--parse-metadata', '%(title)s:%(meta_title)s');
+      args.push('--parse-metadata', '%(uploader)s:%(meta_artist)s');
+    }
+
+    if (embedMetadata && !audioOnly) {
+      args.push('--embed-metadata');
+    }
+    if (embedThumbnail && !audioOnly) {
+      args.push('--embed-thumbnail');
+    }
+
+    if (writeSubs) {
+      args.push('--write-subs');
+      if (embedSubs) args.push('--embed-subs');
+      if (subLang) args.push('--sub-lang', subLang);
+      if (subFormat) args.push('--sub-format', subFormat);
+    }
+
     args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
     args.push('--no-playlist');
     args.push('--progress');
@@ -210,7 +232,7 @@ router.post('/', async (req, res) => {
 // POST /api/download/playlist
 router.post('/playlist', async (req, res) => {
   try {
-    const { urls, format, quality, audioOnly } = req.body;
+    const { urls, format, quality, audioOnly, embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat } = req.body;
     const io = req.app.get('socketio');
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
@@ -243,6 +265,21 @@ router.post('/playlist', async (req, res) => {
         } else {
           args.push('-f', 'b');
         }
+      }
+
+      if (audioOnly && embedMetadata !== false) {
+        args.push('--embed-metadata');
+        args.push('--embed-thumbnail');
+        args.push('--parse-metadata', '%(title)s:%(meta_title)s');
+        args.push('--parse-metadata', '%(uploader)s:%(meta_artist)s');
+      }
+      if (embedMetadata && !audioOnly) args.push('--embed-metadata');
+      if (embedThumbnail && !audioOnly) args.push('--embed-thumbnail');
+      if (writeSubs) {
+        args.push('--write-subs');
+        if (embedSubs) args.push('--embed-subs');
+        if (subLang) args.push('--sub-lang', subLang);
+        if (subFormat) args.push('--sub-format', subFormat);
       }
 
       args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
