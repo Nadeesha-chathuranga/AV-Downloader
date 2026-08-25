@@ -118,6 +118,128 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/download/playlist - Download multiple videos sequentially
+router.post('/playlist', async (req, res) => {
+  try {
+    const { urls, format, quality, audioOnly } = req.body;
+    const io = req.app.get('socketio');
+
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ error: 'urls array is required' });
+    }
+
+    const urlPattern = /^https?:\/\/.+/i;
+    for (const u of urls) {
+      if (!urlPattern.test(u)) {
+        return res.status(400).json({ error: `Invalid URL: ${u}` });
+      }
+    }
+
+    const downloadsDir = path.join(__dirname, '../../downloads');
+    await fs.ensureDir(downloadsDir);
+
+    const playlistId = `pl-${Date.now()}`;
+    io.emit('playlist-start', { playlistId, total: urls.length });
+
+    let index = 0;
+    const downloadNext = () => {
+      if (index >= urls.length) return;
+      const url = urls[index];
+      const currentIndex = index;
+      index++;
+
+      const args = [];
+      args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+      args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
+
+      if (audioOnly) {
+        args.push('-f', 'bestaudio/best');
+        args.push('--extract-audio');
+        args.push('--audio-format', format || 'mp3');
+      } else {
+        if (quality && quality !== 'best') {
+          args.push('-f', `best[height<=${quality}]/best`);
+        } else {
+          args.push('-f', 'b');
+        }
+      }
+
+      args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
+      args.push('--no-playlist');
+      args.push('--progress');
+      args.push(url);
+
+      const downloadId = `${playlistId}-${currentIndex}`;
+      const downloadInfo = {
+        id: downloadId,
+        url,
+        status: 'starting',
+        progress: 0,
+        filename: '',
+        error: null,
+        playlistId,
+        playlistIndex: currentIndex,
+        playlistTotal: urls.length,
+      };
+
+      io.emit('download-start', downloadInfo);
+
+      const ytdlp = spawn('yt-dlp', args);
+
+      ytdlp.stdout.on('data', (data) => {
+        const output = data.toString();
+        const progressMatch = output.match(/(\d+\.\d+)%/);
+        if (progressMatch) {
+          downloadInfo.progress = parseFloat(progressMatch[1]);
+          downloadInfo.status = 'downloading';
+          io.emit('download-progress', downloadInfo);
+        }
+        const filenameMatch = output.match(/\[download\] Destination: (.+)/);
+        if (filenameMatch) {
+          downloadInfo.filename = path.basename(filenameMatch[1]);
+        }
+      });
+
+      ytdlp.stderr.on('data', (data) => {
+        const error = data.toString();
+        downloadInfo.error = error;
+        downloadInfo.status = 'error';
+        io.emit('download-error', downloadInfo);
+        downloadNext();
+      });
+
+      ytdlp.on('close', (code) => {
+        if (code === 0) {
+          downloadInfo.status = 'completed';
+          downloadInfo.progress = 100;
+          io.emit('download-complete', downloadInfo);
+        } else {
+          downloadInfo.status = 'error';
+          downloadInfo.error = `Process exited with code ${code}`;
+          io.emit('download-error', downloadInfo);
+        }
+        downloadNext();
+      });
+    };
+
+    downloadNext();
+
+    res.json({
+      success: true,
+      playlistId,
+      total: urls.length,
+      message: `Playlist download started: ${urls.length} videos queued`,
+    });
+
+  } catch (error) {
+    console.error('Playlist download error:', error);
+    res.status(500).json({
+      error: 'Playlist download failed',
+      details: error.message,
+    });
+  }
+});
+
 // GET /api/download/list - List downloaded files
 router.get('/list', async (req, res) => {
   try {

@@ -17,12 +17,13 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   HourglassEmpty as HourglassEmptyIcon,
+  QueueMusic as PlaylistIcon,
 } from '@mui/icons-material';
 import { useSocket } from '../contexts/SocketContext';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const DownloadProgress: React.FC = () => {
-  const { downloads } = useSocket();
+  const { downloads, playlists } = useSocket();
   const { currentTheme } = useAppTheme();
 
   const getStatusIcon = (status: string) => {
@@ -56,8 +57,8 @@ const DownloadProgress: React.FC = () => {
   };
 
   const activeDownloads = downloads.filter((d) => d.status === 'starting' || d.status === 'downloading');
-
   const recentDownloads = downloads.filter((d) => d.status === 'completed' || d.status === 'error').slice(-5);
+  const activePlaylistIds = Object.keys(playlists).filter((id) => playlists[id].status === 'active');
 
   if (downloads.length === 0) {
     return null;
@@ -95,6 +96,54 @@ const DownloadProgress: React.FC = () => {
             </Typography>
           </Box>
         </Box>
+
+        {activePlaylistIds.map((plId) => {
+          const pl = playlists[plId];
+          const pct = pl.total > 0 ? Math.round(((pl.completed + pl.failed) / pl.total) * 100) : 0;
+          return (
+            <Box
+              key={plId}
+              sx={{
+                mb: 2,
+                p: 2,
+                borderRadius: 3,
+                background: `${currentTheme.colors.secondary}11`,
+                border: `1px solid ${currentTheme.colors.secondary}33`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <PlaylistIcon sx={{ color: currentTheme.colors.secondary, fontSize: 20 }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
+                  Playlist Download
+                </Typography>
+                <Chip
+                  label={`${pl.completed + pl.failed}/${pl.total}`}
+                  size="small"
+                  sx={{
+                    background: `${currentTheme.colors.secondary}22`,
+                    color: currentTheme.colors.secondary,
+                    fontWeight: 600,
+                    borderRadius: 1.5,
+                    fontSize: '0.7rem',
+                  }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ width: '100%', mr: 1.5 }}>
+                  <LinearProgress variant="determinate" value={pct} />
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: currentTheme.colors.secondary, minWidth: 40, textAlign: 'right' }}>
+                  {pct}%
+                </Typography>
+              </Box>
+              {pl.failed > 0 && (
+                <Typography variant="caption" sx={{ color: currentTheme.colors.error, mt: 0.5, display: 'block' }}>
+                  {pl.failed} failed
+                </Typography>
+              )}
+            </Box>
+          );
+        })}
 
         {activeDownloads.length > 0 && (
           <Box sx={{ mb: 3 }}>

@@ -24,9 +24,11 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Link as LinkIcon,
+  QueueMusic as PlaylistIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
+import PlaylistPanel from './PlaylistPanel';
 
 interface VideoInfo {
   id: string;
@@ -41,11 +43,33 @@ interface VideoInfo {
   extractor: string;
 }
 
+interface PlaylistEntry {
+  id: string;
+  title: string;
+  url: string;
+  duration: number;
+  uploader: string;
+}
+
 interface QualityPreset {
   value: string;
   label: string;
   description: string;
 }
+
+const isPlaylistUrl = (url: string): boolean => {
+  const playlistPatterns = [
+    /[?&]list=/,
+    /playlist\?list=/,
+    /\/playlist\//,
+    /\/playlist$/,
+    /youtube\.com\/.*list=/,
+    /youtu\.be\/.*list=/,
+    /open\.spotify\.com\/playlist/,
+    /soundcloud\.com\/.*\/sets\//,
+  ];
+  return playlistPatterns.some((pattern) => pattern.test(url));
+};
 
 const DownloadForm: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -53,6 +77,8 @@ const DownloadForm: React.FC = () => {
   const [format, setFormat] = useState('mp3');
   const [quality, setQuality] = useState('best');
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
+  const [playlistInfo, setPlaylistInfo] = useState<PlaylistEntry[] | null>(null);
+  const [isPlaylist, setIsPlaylist] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -118,6 +144,14 @@ const DownloadForm: React.FC = () => {
     fetchQualityPresets();
   }, [fetchQualityPresets]);
 
+  useEffect(() => {
+    const detected = isPlaylistUrl(url);
+    setIsPlaylist(detected);
+    if (!detected) {
+      setPlaylistInfo(null);
+    }
+  }, [url]);
+
   const fetchVideoInfo = async () => {
     if (!url.trim()) {
       setError('Please enter a URL');
@@ -127,26 +161,34 @@ const DownloadForm: React.FC = () => {
     setLoading(true);
     setError('');
     setVideoInfo(null);
+    setPlaylistInfo(null);
 
     try {
-      const response = await axios.get(`${apiUrl}/info`, { params: { url } });
-      setVideoInfo(response.data);
+      if (isPlaylist) {
+        const response = await axios.get(`${apiUrl}/info/playlist`, { params: { url } });
+        setPlaylistInfo(response.data.entries);
+      } else {
+        const response = await axios.get(`${apiUrl}/info`, { params: { url } });
+        setVideoInfo(response.data);
+      }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
         setError('Backend server not available. Please start the backend server.');
-        const mockVideoInfo = {
-          id: 'demo123',
-          title: 'Demo Video - Universal Downloader Preview',
-          description: 'This is a demo video. The backend server needs to be running for actual video information.',
-          duration: 180,
-          uploader: 'Universal Downloader Demo',
-          upload_date: '20250826',
-          view_count: 1000,
-          thumbnail: 'https://via.placeholder.com/320x180/1976d2/ffffff?text=Demo+Video',
-          webpage_url: url,
-          extractor: 'demo',
-        };
-        setVideoInfo(mockVideoInfo);
+        if (!isPlaylist) {
+          const mockVideoInfo = {
+            id: 'demo123',
+            title: 'Demo Video - Universal Downloader Preview',
+            description: 'This is a demo video. The backend server needs to be running for actual video information.',
+            duration: 180,
+            uploader: 'Universal Downloader Demo',
+            upload_date: '20250826',
+            view_count: 1000,
+            thumbnail: 'https://via.placeholder.com/320x180/1976d2/ffffff?text=Demo+Video',
+            webpage_url: url,
+            extractor: 'demo',
+          };
+          setVideoInfo(mockVideoInfo);
+        }
       } else {
         setError(error.response?.data?.error || 'Failed to fetch video information');
       }
@@ -177,6 +219,7 @@ const DownloadForm: React.FC = () => {
         setSuccess('Download started successfully!');
         setUrl('');
         setVideoInfo(null);
+        setPlaylistInfo(null);
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -189,10 +232,44 @@ const DownloadForm: React.FC = () => {
     }
   };
 
+  const handlePlaylistDownload = async (selectedEntries: PlaylistEntry[]) => {
+    if (selectedEntries.length === 0) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const urls = selectedEntries.map((e) => e.url);
+      const response = await axios.post(`${apiUrl}/download/playlist`, {
+        urls,
+        format: audioOnly ? format : undefined,
+        quality: !audioOnly ? quality : undefined,
+        audioOnly,
+      });
+
+      if (response.data.success) {
+        setSuccess(`Playlist download started: ${response.data.total} videos queued`);
+        setUrl('');
+        setVideoInfo(null);
+        setPlaylistInfo(null);
+      }
+    } catch (error: any) {
+      if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+        setError('Backend server not available.');
+      } else {
+        setError(error.response?.data?.error || 'Playlist download failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDuration = (seconds: number) => {
+    if (!seconds) return '0:00';
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
@@ -236,8 +313,8 @@ const DownloadForm: React.FC = () => {
         <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
-            label="Video URL"
-            placeholder="https://www.youtube.com/watch?v=..."
+            label="Video / Playlist URL"
+            placeholder="https://www.youtube.com/watch?v=... or playlist?list=..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             InputProps={{
@@ -251,6 +328,28 @@ const DownloadForm: React.FC = () => {
               },
             }}
           />
+
+          <Collapse in={isPlaylist}>
+            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Chip
+                icon={<PlaylistIcon sx={{ fontSize: 16 }} />}
+                label="Playlist detected"
+                size="small"
+                sx={{
+                  background: `${currentTheme.colors.secondary}22`,
+                  color: currentTheme.colors.secondary,
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  '& .MuiChip-icon': { color: 'inherit' },
+                }}
+              />
+              {playlistInfo && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {playlistInfo.length} videos found
+                </Typography>
+              )}
+            </Box>
+          </Collapse>
 
           <Box sx={{ mt: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
             <Button
@@ -267,18 +366,20 @@ const DownloadForm: React.FC = () => {
                 },
               }}
             >
-              Get Info
+              {isPlaylist ? 'Get Playlist' : 'Get Info'}
             </Button>
 
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownload}
-              disabled={loading || !url.trim()}
-              sx={{ px: 4 }}
-            >
-              Download
-            </Button>
+            {!isPlaylist && (
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownload}
+                disabled={loading || !url.trim()}
+                sx={{ px: 4 }}
+              >
+                Download
+              </Button>
+            )}
 
             <Tooltip title={showAdvanced ? 'Hide options' : 'Show options'}>
               <IconButton
@@ -405,6 +506,14 @@ const DownloadForm: React.FC = () => {
           >
             {success}
           </Alert>
+        )}
+
+        {playlistInfo && (
+          <PlaylistPanel
+            entries={playlistInfo}
+            onDownload={handlePlaylistDownload}
+            loading={loading}
+          />
         )}
 
         {videoInfo && (
