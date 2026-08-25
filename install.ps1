@@ -493,7 +493,7 @@ Write-Host "  To launch:    start.bat" -ForegroundColor Cyan
 Write-Host "  To update:    update.bat" -ForegroundColor Cyan
 Write-Host "  To uninstall: uninstall.bat" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Developed by: https://github.com/sh13y" -ForegroundColor DarkGray
+Write-Host "  Developed by: https://github.com/Nadeesha-chathuranga" -ForegroundColor DarkGray
 Write-Host "  Repo:         https://github.com/Nadeesha-chathuranga/Seal-Web-App" -ForegroundColor DarkGray
 Write-Host "=====================================================" -ForegroundColor Green
 Write-Host ""
