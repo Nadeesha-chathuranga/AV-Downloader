@@ -52,7 +52,6 @@ Double-click `update.bat` to pull the latest code and update yt-dlp/ffmpeg.
 | `start.bat` | Launches the app. Checks ports, starts servers, opens browser automatically. |
 | `update.bat` | Updates everything — pulls latest code, reinstalls npm deps, upgrades yt-dlp and ffmpeg. |
 | `uninstall.bat` | Removes the app and optionally uninstalls tools. |
-| `seal-web-app-windows-setup.md` | Original manual installation guide. |
 
 ---
 
@@ -139,12 +138,6 @@ Run `uninstall.bat` to remove:
 | Node.js version error | Install Node.js v22 LTS: `winget install OpenJS.NodeJS.LTS` |
 | Debug mode | Run: `set DEBUG=seal-web-app:* && npm run dev` |
 | Still stuck? | Check the [Seal Web App issues](https://github.com/Nadeesha-chathuranga/Seal-Web-App/issues) or share your `install.log` |
-
----
-
-## Manual Installation
-
-If you prefer to install everything yourself, see [seal-web-app-windows-setup.md](seal-web-app-windows-setup.md) for the step-by-step guide.
 
 ---
 
