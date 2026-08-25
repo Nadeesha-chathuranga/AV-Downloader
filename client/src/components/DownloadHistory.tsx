@@ -33,7 +33,7 @@ const DownloadHistory: React.FC = () => {
 
   const apiUrl = process.env.NODE_ENV === 'production' 
     ? '/api' 
-    : 'http://localhost:5000/api';
+    : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);

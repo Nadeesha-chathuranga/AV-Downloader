@@ -16,7 +16,7 @@ const Header: React.FC = () => {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const apiUrl = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api';
+        const apiUrl = process.env.NODE_ENV === 'production' ? '/api' : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
         await axios.get(`${apiUrl}/formats/quality-presets`);
         setBackendStatus('connected');
       } catch (error) {
