@@ -82,6 +82,68 @@ const isPlaylistUrl = (url: string): boolean => {
   return playlistPatterns.some((pattern) => pattern.test(url));
 };
 
+interface OptionDef {
+  id: string;
+  label: string;
+  args: string;
+}
+
+interface OptionGroup {
+  category: string;
+  options: OptionDef[];
+}
+
+const OPTION_GROUPS: OptionGroup[] = [
+  {
+    category: 'Output',
+    options: [
+      { id: 'best-quality', label: 'Best Quality', args: '-f bestvideo+bestaudio' },
+      { id: 'best-audio', label: 'Best Audio', args: '-f bestaudio' },
+      { id: 'merge-mp4', label: 'Merge MP4', args: '--merge-output-format mp4' },
+      { id: 'merge-mkv', label: 'Merge MKV', args: '--merge-output-format mkv' },
+      { id: 'mp3', label: 'MP3', args: '-x --audio-format mp3' },
+      { id: 'flac', label: 'FLAC', args: '-x --audio-format flac' },
+      { id: 'm4a', label: 'M4A', args: '-x --audio-format m4a' },
+    ],
+  },
+  {
+    category: 'Subtitles',
+    options: [
+      { id: 'write-subs', label: 'Write Subs', args: '--write-subs' },
+      { id: 'embed-subs', label: 'Embed Subs', args: '--write-subs --embed-subs' },
+      { id: 'sub-lang', label: 'English Subs', args: '--write-subs --sub-lang en --embed-subs --sub-format srt' },
+      { id: 'auto-subs', label: 'Auto Subs', args: '--write-auto-subs --embed-subs' },
+    ],
+  },
+  {
+    category: 'Metadata',
+    options: [
+      { id: 'embed-metadata', label: 'Embed Metadata', args: '--embed-metadata' },
+      { id: 'embed-thumb', label: 'Embed Thumbnail', args: '--embed-thumbnail' },
+      { id: 'write-desc', label: 'Write Description', args: '--write-description' },
+      { id: 'write-info', label: 'Write Info JSON', args: '--write-info-json' },
+      { id: 'write-chapters', label: 'Write Chapters', args: '--write-chapters' },
+    ],
+  },
+  {
+    category: 'Playback',
+    options: [
+      { id: 'no-playlist', label: 'No Playlist', args: '--no-playlist' },
+      { id: 'no-overwrite', label: 'No Overwrite', args: '--no-overwrites' },
+      { id: 'archive', label: 'Archive Mode', args: '--download-archive archive.txt' },
+    ],
+  },
+  {
+    category: 'Network',
+    options: [
+      { id: 'rate-limit', label: 'Rate Limit 5M', args: '--limit-rate 5M' },
+      { id: 'ignore-errors', label: 'Ignore Errors', args: '--ignore-errors' },
+      { id: 'no-cert', label: 'No Cert Check', args: '--no-check-certificates' },
+      { id: 'retries', label: 'Retries 10', args: '--retries 10' },
+    ],
+  },
+];
+
 const DownloadForm: React.FC = () => {
   const [url, setUrl] = useState('');
   const [audioOnly, setAudioOnly] = useState(false);
@@ -338,6 +400,28 @@ const DownloadForm: React.FC = () => {
     return `yt-dlp -f best[height<=${quality}]/best ${url || '[URL]'}`;
   };
 
+  const isOptionActive = (args: string) => {
+    const parts = args.split(/\s+/);
+    const current = customArgs;
+    return parts.every((p) => current.includes(p));
+  };
+
+  const toggleOption = (args: string) => {
+    setSelectedTemplateId('');
+    const parts = args.split(/\s+/);
+    const current = customArgs.trim();
+    const active = parts.every((p) => current.includes(p));
+    if (active) {
+      let next = current;
+      for (const p of parts) {
+        next = next.replace(new RegExp(`\\s*${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`), ' ').trim();
+      }
+      setCustomArgs(next.replace(/\s+/g, ' ').trim());
+    } else {
+      setCustomArgs(current ? `${current} ${args}` : args);
+    }
+  };
+
   return (
     <Card
       className="glass-card"
@@ -485,18 +569,65 @@ const DownloadForm: React.FC = () => {
 
             <Divider sx={{ my: 2.5, borderColor: currentTheme.colors.border }} />
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
               <CodeIcon sx={{ fontSize: 18, color: currentTheme.colors.warning }} />
               <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
-                Advanced
+                Quick Options
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {OPTION_GROUPS.map((group) => (
+                <Box key={group.category}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5, display: 'block' }}>
+                    {group.category}
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                    {group.options.map((opt) => {
+                      const active = isOptionActive(opt.args);
+                      return (
+                        <Tooltip key={opt.id} title={opt.args} arrow placement="top">
+                          <Chip
+                            label={opt.label}
+                            size="small"
+                            onClick={() => toggleOption(opt.args)}
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: '0.72rem',
+                              height: 28,
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              background: active ? `${currentTheme.colors.primary}` : `${currentTheme.colors.surfaceAlt}`,
+                              color: active ? '#fff' : 'text.secondary',
+                              border: `1px solid ${active ? currentTheme.colors.primary : currentTheme.colors.border}`,
+                              '&:hover': {
+                                background: active ? currentTheme.colors.primary : `${currentTheme.colors.primary}22`,
+                                borderColor: currentTheme.colors.primary,
+                              },
+                            }}
+                          />
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+
+            <Divider sx={{ my: 2.5, borderColor: currentTheme.colors.border }} />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                Templates
               </Typography>
             </Box>
 
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Command Template</InputLabel>
+              <InputLabel>Load Template</InputLabel>
               <Select
                 value={selectedTemplateId}
-                label="Command Template"
+                label="Load Template"
                 onChange={(e) => {
                   const val = e.target.value;
                   setSelectedTemplateId(val);
@@ -507,7 +638,7 @@ const DownloadForm: React.FC = () => {
                 }}
               >
                 <MenuItem value="">
-                  <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>None (use defaults)</Typography>
+                  <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>None</Typography>
                 </MenuItem>
                 {allTemplates.map((tpl) => (
                   <MenuItem key={tpl.id} value={tpl.id}>
@@ -525,8 +656,8 @@ const DownloadForm: React.FC = () => {
               multiline
               minRows={2}
               maxRows={5}
-              label="Custom yt-dlp arguments"
-              placeholder="-f best --embed-metadata --embed-thumbnail"
+              label="yt-dlp arguments"
+              placeholder="Type or click options above"
               value={customArgs}
               onChange={(e) => { setCustomArgs(e.target.value); setSelectedTemplateId(''); }}
               sx={{
