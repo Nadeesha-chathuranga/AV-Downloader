@@ -11,6 +11,8 @@ import {
   ListItemText,
   ListItemIcon,
   Alert,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -18,12 +20,13 @@ import {
   Error as ErrorIcon,
   HourglassEmpty as HourglassEmptyIcon,
   QueueMusic as PlaylistIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useSocket } from '../contexts/SocketContext';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const DownloadProgress: React.FC = () => {
-  const { downloads, playlists } = useSocket();
+  const { downloads, playlists, cancelDownload } = useSocket();
   const { currentTheme } = useAppTheme();
 
   const getStatusIcon = (status: string) => {
@@ -196,6 +199,21 @@ const DownloadProgress: React.FC = () => {
                         fontSize: '0.7rem',
                       }}
                     />
+                    {(download.status === 'starting' || download.status === 'downloading' || download.status === 'queued') && (
+                      <Tooltip title="Cancel download">
+                        <IconButton
+                          size="small"
+                          onClick={() => cancelDownload(download.id)}
+                          sx={{
+                            ml: 0.5,
+                            color: currentTheme.colors.error,
+                            '&:hover': { background: `${currentTheme.colors.error}22` },
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
 
                   {download.status === 'downloading' && (

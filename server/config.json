@@ -1,0 +1,6 @@
+{
+  "maxConcurrentDownloads": 3,
+  "downloadPath": "./downloads",
+  "defaultAudioFormat": "mp3",
+  "defaultVideoQuality": "best"
+}

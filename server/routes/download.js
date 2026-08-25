@@ -9,6 +9,19 @@ const DANGEROUS_FLAGS = [
   '--batch-file', '--delete',
 ];
 
+const CONFIG_PATH = path.join(__dirname, '../config.json');
+
+const loadConfig = () => {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) return fs.readJsonSync(CONFIG_PATH);
+  } catch (e) {}
+  return { maxConcurrentDownloads: 3 };
+};
+
+const saveConfig = (config) => {
+  fs.writeJsonSync(CONFIG_PATH, config, { spaces: 2 });
+};
+
 const parseCustomArgs = (argString) => {
   if (!argString || !argString.trim()) return [];
   const tokens = [];
@@ -46,39 +59,110 @@ const validateCustomArgs = (argString) => {
   return { valid: true };
 };
 
+// --- Queue State ---
+const activeProcesses = new Map();   // downloadId -> ChildProcess
+const queue = [];                     // { id, url, args, downloadsDir, io, info }
+let activeCount = 0;
+
+const processQueue = () => {
+  const config = loadConfig();
+  while (queue.length > 0 && activeCount < config.maxConcurrentDownloads) {
+    const job = queue.shift();
+    activeCount++;
+    startDownload(job);
+  }
+};
+
+const startDownload = (job) => {
+  const { id, url, args, downloadsDir, io, info } = job;
+
+  io.emit('download-start', info);
+
+  const ytdlp = spawn('yt-dlp', args);
+  activeProcesses.set(id, ytdlp);
+
+  ytdlp.stdout.on('data', (data) => {
+    const output = data.toString();
+    const progressMatch = output.match(/(\d+\.\d+)%/);
+    if (progressMatch) {
+      info.progress = parseFloat(progressMatch[1]);
+      info.status = 'downloading';
+      io.emit('download-progress', info);
+    }
+    const filenameMatch = output.match(/\[download\] Destination: (.+)/);
+    if (filenameMatch) {
+      info.filename = path.basename(filenameMatch[1]);
+    }
+  });
+
+  ytdlp.stderr.on('data', (data) => {
+    const error = data.toString();
+    info.error = error;
+    info.status = 'error';
+    io.emit('download-error', info);
+  });
+
+  ytdlp.on('close', (code) => {
+    activeProcesses.delete(id);
+    activeCount--;
+    if (code === 0) {
+      info.status = 'completed';
+      info.progress = 100;
+      io.emit('download-complete', info);
+    } else if (info.status !== 'cancelled') {
+      info.status = 'error';
+      info.error = `Process exited with code ${code}`;
+      io.emit('download-error', info);
+    }
+    processQueue();
+  });
+};
+
+const buildArgs = (options) => {
+  const { customArgs, audioOnly, format, quality } = options;
+  const args = [];
+  args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+  args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
+
+  if (customArgs) {
+    args.push(...parseCustomArgs(customArgs));
+  } else if (audioOnly) {
+    args.push('-f', 'bestaudio/best');
+    args.push('--extract-audio');
+    args.push('--audio-format', format || 'mp3');
+  } else {
+    if (quality && quality !== 'best') {
+      args.push('-f', `best[height<=${quality}]/best`);
+    } else {
+      args.push('-f', 'b');
+    }
+  }
+  return args;
+};
+
 // POST /api/download
 router.post('/', async (req, res) => {
   try {
     const { url, format, quality, audioOnly, outputPath, customArgs, formatId } = req.body;
     const io = req.app.get('socketio');
 
-    if (!url) {
-      return res.status(400).json({ error: 'URL is required' });
-    }
+    if (!url) return res.status(400).json({ error: 'URL is required' });
 
-    // Basic URL validation - let yt-dlp handle specific format validation
     const urlPattern = /^https?:\/\/.+/i;
-    if (!urlPattern.test(url)) {
-      return res.status(400).json({ error: 'Invalid URL format. Please provide a valid HTTP/HTTPS URL.' });
-    }
+    if (!urlPattern.test(url)) return res.status(400).json({ error: 'Invalid URL format.' });
 
     if (customArgs) {
       const validation = validateCustomArgs(customArgs);
-      if (!validation.valid) {
-        return res.status(400).json({ error: validation.error });
-      }
+      if (!validation.valid) return res.status(400).json({ error: validation.error });
     }
 
     const downloadsDir = path.join(__dirname, '../../downloads');
     await fs.ensureDir(downloadsDir);
 
-    // Build yt-dlp command with better YouTube handling
     const args = [];
-    
-    // Add user agent and headers to bypass some restrictions
     args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
-    
+
     if (customArgs) {
       args.push(...parseCustomArgs(customArgs));
     } else if (formatId) {
@@ -95,7 +179,6 @@ router.post('/', async (req, res) => {
       if (quality && quality !== 'best') {
         args.push('-f', `best[height<=${quality}]/best`);
       } else {
-        // Use 'b' instead of 'best' to suppress warning
         args.push('-f', 'b');
       }
     }
@@ -106,76 +189,25 @@ router.post('/', async (req, res) => {
     args.push(url);
 
     const downloadId = Date.now().toString();
-    
-    // Spawn yt-dlp process
-    const ytdlp = spawn('yt-dlp', args);
+    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null };
 
-    let downloadInfo = {
-      id: downloadId,
-      url,
-      status: 'starting',
-      progress: 0,
-      filename: '',
-      error: null
-    };
+    const config = loadConfig();
+    if (activeCount < config.maxConcurrentDownloads) {
+      activeCount++;
+      startDownload({ id: downloadId, url, args, downloadsDir, io, info });
+    } else {
+      queue.push({ id: downloadId, url, args, downloadsDir, io, info });
+    }
 
-    io.emit('download-start', downloadInfo);
-
-    ytdlp.stdout.on('data', (data) => {
-      const output = data.toString();
-      console.log('yt-dlp stdout:', output);
-      
-      // Parse progress information
-      const progressMatch = output.match(/(\d+\.\d+)%/);
-      if (progressMatch) {
-        downloadInfo.progress = parseFloat(progressMatch[1]);
-        downloadInfo.status = 'downloading';
-        io.emit('download-progress', downloadInfo);
-      }
-      
-      // Extract filename
-      const filenameMatch = output.match(/\[download\] Destination: (.+)/);
-      if (filenameMatch) {
-        downloadInfo.filename = path.basename(filenameMatch[1]);
-      }
-    });
-
-    ytdlp.stderr.on('data', (data) => {
-      const error = data.toString();
-      console.error('yt-dlp stderr:', error);
-      downloadInfo.error = error;
-      downloadInfo.status = 'error';
-      io.emit('download-error', downloadInfo);
-    });
-
-    ytdlp.on('close', (code) => {
-      if (code === 0) {
-        downloadInfo.status = 'completed';
-        downloadInfo.progress = 100;
-        io.emit('download-complete', downloadInfo);
-      } else {
-        downloadInfo.status = 'error';
-        downloadInfo.error = `Process exited with code ${code}`;
-        io.emit('download-error', downloadInfo);
-      }
-    });
-
-    res.json({
-      success: true,
-      downloadId,
-      message: 'Download started'
-    });
+    res.json({ success: true, downloadId, queued: info.status === 'queued', message: 'Download started' });
 
   } catch (error) {
     console.error('Download error:', error);
-    res.status(500).json({ 
-      error: 'Download failed',
-      details: error.message 
-    });
+    res.status(500).json({ error: 'Download failed', details: error.message });
   }
 });
 
-// POST /api/download/playlist - Download multiple videos sequentially
+// POST /api/download/playlist
 router.post('/playlist', async (req, res) => {
   try {
     const { urls, format, quality, audioOnly } = req.body;
@@ -187,9 +219,7 @@ router.post('/playlist', async (req, res) => {
 
     const urlPattern = /^https?:\/\/.+/i;
     for (const u of urls) {
-      if (!urlPattern.test(u)) {
-        return res.status(400).json({ error: `Invalid URL: ${u}` });
-      }
+      if (!urlPattern.test(u)) return res.status(400).json({ error: `Invalid URL: ${u}` });
     }
 
     const downloadsDir = path.join(__dirname, '../../downloads');
@@ -198,13 +228,7 @@ router.post('/playlist', async (req, res) => {
     const playlistId = `pl-${Date.now()}`;
     io.emit('playlist-start', { playlistId, total: urls.length });
 
-    let index = 0;
-    const downloadNext = () => {
-      if (index >= urls.length) return;
-      const url = urls[index];
-      const currentIndex = index;
-      index++;
-
+    urls.forEach((url, index) => {
       const args = [];
       args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
       args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
@@ -226,118 +250,110 @@ router.post('/playlist', async (req, res) => {
       args.push('--progress');
       args.push(url);
 
-      const downloadId = `${playlistId}-${currentIndex}`;
-      const downloadInfo = {
-        id: downloadId,
-        url,
-        status: 'starting',
-        progress: 0,
-        filename: '',
-        error: null,
-        playlistId,
-        playlistIndex: currentIndex,
-        playlistTotal: urls.length,
+      const downloadId = `${playlistId}-${index}`;
+      const info = {
+        id: downloadId, url, status: 'queued', progress: 0, filename: '',
+        error: null, playlistId, playlistIndex: index, playlistTotal: urls.length,
       };
 
-      io.emit('download-start', downloadInfo);
-
-      const ytdlp = spawn('yt-dlp', args);
-
-      ytdlp.stdout.on('data', (data) => {
-        const output = data.toString();
-        const progressMatch = output.match(/(\d+\.\d+)%/);
-        if (progressMatch) {
-          downloadInfo.progress = parseFloat(progressMatch[1]);
-          downloadInfo.status = 'downloading';
-          io.emit('download-progress', downloadInfo);
-        }
-        const filenameMatch = output.match(/\[download\] Destination: (.+)/);
-        if (filenameMatch) {
-          downloadInfo.filename = path.basename(filenameMatch[1]);
-        }
-      });
-
-      ytdlp.stderr.on('data', (data) => {
-        const error = data.toString();
-        downloadInfo.error = error;
-        downloadInfo.status = 'error';
-        io.emit('download-error', downloadInfo);
-        downloadNext();
-      });
-
-      ytdlp.on('close', (code) => {
-        if (code === 0) {
-          downloadInfo.status = 'completed';
-          downloadInfo.progress = 100;
-          io.emit('download-complete', downloadInfo);
-        } else {
-          downloadInfo.status = 'error';
-          downloadInfo.error = `Process exited with code ${code}`;
-          io.emit('download-error', downloadInfo);
-        }
-        downloadNext();
-      });
-    };
-
-    downloadNext();
-
-    res.json({
-      success: true,
-      playlistId,
-      total: urls.length,
-      message: `Playlist download started: ${urls.length} videos queued`,
+      const config = loadConfig();
+      if (activeCount < config.maxConcurrentDownloads) {
+        activeCount++;
+        startDownload({ id: downloadId, url, args, downloadsDir, io, info });
+      } else {
+        queue.push({ id: downloadId, url, args, downloadsDir, io, info });
+      }
     });
+
+    res.json({ success: true, playlistId, total: urls.length, message: `Playlist download started: ${urls.length} videos queued` });
 
   } catch (error) {
     console.error('Playlist download error:', error);
-    res.status(500).json({
-      error: 'Playlist download failed',
-      details: error.message,
-    });
+    res.status(500).json({ error: 'Playlist download failed', details: error.message });
   }
 });
 
-// GET /api/download/list - List downloaded files
+// DELETE /api/download/cancel/:id
+router.delete('/cancel/:id', (req, res) => {
+  const { id } = req.params;
+  const io = req.app.get('socketio');
+
+  const proc = activeProcesses.get(id);
+  if (proc) {
+    proc.kill('SIGTERM');
+    activeProcesses.delete(id);
+    activeCount--;
+    io.emit('download-cancelled', { id });
+    io.emit('download-error', { id, status: 'error', error: 'Cancelled by user', progress: 0, filename: '', url: '' });
+    processQueue();
+    return res.json({ success: true, message: 'Download cancelled' });
+  }
+
+  const qIndex = queue.findIndex((j) => j.id === id);
+  if (qIndex !== -1) {
+    const job = queue.splice(qIndex, 1)[0];
+    io.emit('download-cancelled', { id });
+    io.emit('download-error', { id: job.id, status: 'error', error: 'Cancelled by user', progress: 0, filename: '', url: job.url });
+    return res.json({ success: true, message: 'Download removed from queue' });
+  }
+
+  res.status(404).json({ error: 'Download not found' });
+});
+
+// GET /api/download/queue
+router.get('/queue', (req, res) => {
+  const config = loadConfig();
+  res.json({
+    maxConcurrent: config.maxConcurrentDownloads,
+    activeCount,
+    queueLength: queue.length,
+    queued: queue.map((j) => ({ id: j.id, url: j.url, info: j.info })),
+    active: Array.from(activeProcesses.keys()),
+  });
+});
+
+// PUT /api/download/queue/settings
+router.put('/queue/settings', (req, res) => {
+  const { maxConcurrentDownloads } = req.body;
+  if (!maxConcurrentDownloads || maxConcurrentDownloads < 1 || maxConcurrentDownloads > 10) {
+    return res.status(400).json({ error: 'maxConcurrentDownloads must be between 1 and 10' });
+  }
+  const config = loadConfig();
+  config.maxConcurrentDownloads = maxConcurrentDownloads;
+  saveConfig(config);
+  processQueue();
+  res.json({ success: true, maxConcurrentDownloads });
+});
+
+// GET /api/download/list
 router.get('/list', async (req, res) => {
   try {
     const downloadsDir = path.join(__dirname, '../../downloads');
     const files = await fs.readdir(downloadsDir);
-    
     const fileList = await Promise.all(
       files.map(async (file) => {
         const filePath = path.join(downloadsDir, file);
         const stats = await fs.stat(filePath);
-        return {
-          name: file,
-          size: stats.size,
-          createdAt: stats.birthtime,
-          modifiedAt: stats.mtime
-        };
+        return { name: file, size: stats.size, createdAt: stats.birthtime, modifiedAt: stats.mtime };
       })
     );
-
     res.json(fileList);
   } catch (error) {
-    console.error('Error listing files:', error);
     res.status(500).json({ error: 'Failed to list files' });
   }
 });
 
-// DELETE /api/download/:filename - Delete a downloaded file
+// DELETE /api/download/:filename
 router.delete('/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
     const filePath = path.join(__dirname, '../../downloads', filename);
-    
-    // Security check - ensure file is in downloads directory
     if (!filePath.startsWith(path.join(__dirname, '../../downloads'))) {
       return res.status(400).json({ error: 'Invalid file path' });
     }
-
     await fs.remove(filePath);
     res.json({ success: true, message: 'File deleted successfully' });
   } catch (error) {
-    console.error('Error deleting file:', error);
     res.status(500).json({ error: 'Failed to delete file' });
   }
 });
