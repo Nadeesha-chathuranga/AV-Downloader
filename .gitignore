@@ -66,6 +66,9 @@ Thumbs.db
 # Installer runtime data
 .install-info
 
+# Development docs
+ROADMAP.md
+
 # Runtime data
 pids
 *.pid
