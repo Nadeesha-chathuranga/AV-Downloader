@@ -6,18 +6,23 @@ import {
   Box,
   Chip,
   Alert,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import ThemeSwitcher from '../theme/ThemeSwitcher';
+import SettingsDialog from './SettingsDialog';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const Header: React.FC = () => {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { currentTheme } = useAppTheme();
 
   useEffect(() => {
@@ -100,7 +105,7 @@ const Header: React.FC = () => {
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
               label={backendStatus === 'connected' ? 'Online' : backendStatus === 'disconnected' ? 'Offline' : 'Checking...'}
               color={backendStatus === 'connected' ? 'success' : backendStatus === 'disconnected' ? 'error' : 'default'}
@@ -120,10 +125,23 @@ const Header: React.FC = () => {
                 },
               }}
             />
+            <Tooltip title="Settings">
+              <IconButton
+                onClick={() => setSettingsOpen(true)}
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': { color: currentTheme.colors.primary, background: `${currentTheme.colors.primary}11` },
+                }}
+              >
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <ThemeSwitcher />
           </Box>
         </Toolbar>
       </AppBar>
+
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {backendStatus === 'disconnected' && (
         <Alert
