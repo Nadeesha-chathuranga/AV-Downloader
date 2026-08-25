@@ -31,14 +31,17 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/build')));
 }
 
-// Ensure downloads directory exists
+// Ensure downloads and templates directories exist
 const downloadsDir = path.join(__dirname, '../downloads');
+const templatesDir = path.join(__dirname, '../templates');
 fs.ensureDirSync(downloadsDir);
+fs.ensureDirSync(templatesDir);
 
 // Routes
 app.use('/api/download', require('./routes/download'));
 app.use('/api/info', require('./routes/info'));
 app.use('/api/formats', require('./routes/formats'));
+app.use('/api/templates', require('./routes/templates'));
 
 // Socket.io for real-time download progress
 io.on('connection', (socket) => {

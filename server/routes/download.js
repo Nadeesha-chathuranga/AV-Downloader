@@ -4,10 +4,52 @@ const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
 
+const DANGEROUS_FLAGS = [
+  '--rm', '--exec', '--run', '--power-shell',
+  '--batch-file', '--delete',
+];
+
+const parseCustomArgs = (argString) => {
+  if (!argString || !argString.trim()) return [];
+  const tokens = [];
+  let current = '';
+  let inQuote = false;
+  let quoteChar = '';
+  for (let i = 0; i < argString.length; i++) {
+    const ch = argString[i];
+    if (inQuote) {
+      if (ch === quoteChar) { inQuote = false; continue; }
+      current += ch;
+    } else if (ch === '"' || ch === "'") {
+      inQuote = true;
+      quoteChar = ch;
+    } else if (ch === ' ' || ch === '\t') {
+      if (current) { tokens.push(current); current = ''; }
+    } else {
+      current += ch;
+    }
+  }
+  if (current) tokens.push(current);
+  return tokens;
+};
+
+const validateCustomArgs = (argString) => {
+  const flagged = argString.match(/--[a-zA-Z-]+/g) || [];
+  for (const flag of flagged) {
+    if (DANGEROUS_FLAGS.includes(flag.toLowerCase())) {
+      return { valid: false, error: `Blocked dangerous flag: ${flag}` };
+    }
+  }
+  if (/[;&|`$]/.test(argString)) {
+    return { valid: false, error: 'Shell characters are not allowed' };
+  }
+  return { valid: true };
+};
+
 // POST /api/download
 router.post('/', async (req, res) => {
   try {
-    const { url, format, quality, audioOnly, outputPath } = req.body;
+    const { url, format, quality, audioOnly, outputPath, customArgs } = req.body;
     const io = req.app.get('socketio');
 
     if (!url) {
@@ -20,6 +62,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid URL format. Please provide a valid HTTP/HTTPS URL.' });
     }
 
+    if (customArgs) {
+      const validation = validateCustomArgs(customArgs);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+      }
+    }
+
     const downloadsDir = path.join(__dirname, '../../downloads');
     await fs.ensureDir(downloadsDir);
 
@@ -30,7 +79,9 @@ router.post('/', async (req, res) => {
     args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
     
-    if (audioOnly) {
+    if (customArgs) {
+      args.push(...parseCustomArgs(customArgs));
+    } else if (audioOnly) {
       args.push('-f', 'bestaudio/best');
       args.push('--extract-audio');
       args.push('--audio-format', format || 'mp3');

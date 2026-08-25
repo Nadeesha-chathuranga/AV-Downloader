@@ -1,0 +1,92 @@
+[
+  {
+    "id": "best-quality",
+    "name": "Best Quality",
+    "description": "Download best available video+audio quality",
+    "args": "-f bestvideo+bestaudio --merge-output-format mkv",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "audio-mp3",
+    "name": "Audio Only (MP3)",
+    "description": "Extract audio as MP3 with metadata",
+    "args": "-x --audio-format mp3 --audio-quality 0 --embed-metadata",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "audio-flac",
+    "name": "Audio Only (FLAC)",
+    "description": "Extract audio as lossless FLAC",
+    "args": "-x --audio-format flac --embed-metadata",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "1080p-max",
+    "name": "1080p Max",
+    "description": "Cap video at 1080p Full HD",
+    "args": "-f bestvideo[height<=1080]+bestaudio --merge-output-format mp4",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "4k-download",
+    "name": "4K Ultra HD",
+    "description": "Download up to 4K (2160p) resolution",
+    "args": "-f bestvideo[height<=2160]+bestaudio --merge-output-format mkv",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "with-subs",
+    "name": "With Subtitles",
+    "description": "Download with embedded subtitles",
+    "args": "-f best --write-subs --sub-lang en --embed-subs --sub-format srt",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "thumbnail-embed",
+    "name": "Thumbnail Embed",
+    "description": "Embed thumbnail into the output file",
+    "args": "-f best --embed-thumbnail",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "minimal",
+    "name": "Minimal",
+    "description": "Download without playlist, suppress warnings",
+    "args": "-f best --no-playlist --no-warnings --no-check-certificates",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "archive-mode",
+    "name": "Archive Mode",
+    "description": "Skip previously downloaded videos using archive file",
+    "args": "-f best --download-archive archive.txt --no-overwrites",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "gif-convert",
+    "name": "GIF Convert",
+    "description": "Download as animated GIF (short clips)",
+    "args": "-f best --merge-output-format gif",
+    "builtIn": true,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  }
+]
