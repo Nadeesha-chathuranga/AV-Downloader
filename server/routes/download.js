@@ -15,7 +15,7 @@ const loadConfig = () => {
   try {
     if (fs.existsSync(CONFIG_PATH)) return fs.readJsonSync(CONFIG_PATH);
   } catch (e) {}
-  return { maxConcurrentDownloads: 3 };
+  return { maxConcurrentDownloads: 3, downloadSpeedLimit: 0 };
 };
 
 const saveConfig = (config) => {
@@ -87,7 +87,20 @@ const startDownload = (job) => {
     if (progressMatch) {
       info.progress = parseFloat(progressMatch[1]);
       info.status = 'downloading';
-      io.emit('download-progress', info);
+
+      const sizeMatch = output.match(/of\s+~?([\d.]+\s*[KMG]iB)/i);
+      if (sizeMatch) info.totalSize = sizeMatch[1];
+
+      const speedMatch = output.match(/at\s+([\d.]+\s*[KMG]iB\/s)/i);
+      if (speedMatch) info.speed = speedMatch[1];
+
+      const etaMatch = output.match(/ETA\s+(\S+)/i);
+      if (etaMatch) info.eta = etaMatch[1];
+
+      const downloadedMatch = output.match(/\[download\]\s+([\d.]+\s*[KMG]iB)/i);
+      if (downloadedMatch) info.downloadedSize = downloadedMatch[1];
+
+      io.emit('download-progress', { ...info });
     }
     const filenameMatch = output.match(/\[download\] Destination: (.+)/);
     if (filenameMatch) {
@@ -208,12 +221,16 @@ router.post('/', async (req, res) => {
     args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
     args.push('--no-playlist');
     args.push('--progress');
-    args.push(url);
 
     const downloadId = Date.now().toString();
-    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null };
+    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null, totalSize: '', speed: '', eta: '', downloadedSize: '' };
 
     const config = loadConfig();
+    if (config.downloadSpeedLimit && config.downloadSpeedLimit > 0) {
+      args.push('--limit-rate', `${config.downloadSpeedLimit}`);
+    }
+    args.push(url);
+
     if (activeCount < config.maxConcurrentDownloads) {
       activeCount++;
       startDownload({ id: downloadId, url, args, downloadsDir, io, info });
@@ -285,15 +302,20 @@ router.post('/playlist', async (req, res) => {
       args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
       args.push('--no-playlist');
       args.push('--progress');
+
+      const config = loadConfig();
+      if (config.downloadSpeedLimit && config.downloadSpeedLimit > 0) {
+        args.push('--limit-rate', `${config.downloadSpeedLimit}`);
+      }
       args.push(url);
 
       const downloadId = `${playlistId}-${index}`;
       const info = {
         id: downloadId, url, status: 'queued', progress: 0, filename: '',
         error: null, playlistId, playlistIndex: index, playlistTotal: urls.length,
+        totalSize: '', speed: '', eta: '', downloadedSize: '',
       };
 
-      const config = loadConfig();
       if (activeCount < config.maxConcurrentDownloads) {
         activeCount++;
         startDownload({ id: downloadId, url, args, downloadsDir, io, info });
@@ -342,6 +364,7 @@ router.get('/queue', (req, res) => {
   const config = loadConfig();
   res.json({
     maxConcurrent: config.maxConcurrentDownloads,
+    downloadSpeedLimit: config.downloadSpeedLimit || 0,
     activeCount,
     queueLength: queue.length,
     queued: queue.map((j) => ({ id: j.id, url: j.url, info: j.info })),
@@ -351,29 +374,34 @@ router.get('/queue', (req, res) => {
 
 // PUT /api/download/queue/settings
 router.put('/queue/settings', (req, res) => {
-  const { maxConcurrentDownloads } = req.body;
+  const { maxConcurrentDownloads, downloadSpeedLimit } = req.body;
   if (!maxConcurrentDownloads || maxConcurrentDownloads < 1 || maxConcurrentDownloads > 10) {
     return res.status(400).json({ error: 'maxConcurrentDownloads must be between 1 and 10' });
   }
+  if (downloadSpeedLimit !== undefined && (downloadSpeedLimit < 0 || downloadSpeedLimit > 104857600)) {
+    return res.status(400).json({ error: 'downloadSpeedLimit must be between 0 and 104857600 (100 MB/s)' });
+  }
   const config = loadConfig();
   config.maxConcurrentDownloads = maxConcurrentDownloads;
+  config.downloadSpeedLimit = downloadSpeedLimit ?? config.downloadSpeedLimit ?? 0;
   saveConfig(config);
   processQueue();
-  res.json({ success: true, maxConcurrentDownloads });
+  res.json({ success: true, maxConcurrentDownloads, downloadSpeedLimit: config.downloadSpeedLimit });
 });
 
 // GET /api/download/list
 router.get('/list', async (req, res) => {
   try {
     const downloadsDir = path.join(__dirname, '../../downloads');
-    const files = await fs.readdir(downloadsDir);
-    const fileList = await Promise.all(
-      files.map(async (file) => {
-        const filePath = path.join(downloadsDir, file);
-        const stats = await fs.stat(filePath);
-        return { name: file, size: stats.size, createdAt: stats.birthtime, modifiedAt: stats.mtime };
-      })
-    );
+    const entries = await fs.readdir(downloadsDir);
+    const fileList = [];
+    for (const file of entries) {
+      const filePath = path.join(downloadsDir, file);
+      const stats = await fs.stat(filePath);
+      if (stats.isFile()) {
+        fileList.push({ name: file, size: stats.size, createdAt: stats.birthtime, modifiedAt: stats.mtime });
+      }
+    }
     res.json(fileList);
   } catch (error) {
     res.status(500).json({ error: 'Failed to list files' });

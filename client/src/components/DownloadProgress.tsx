@@ -81,7 +81,7 @@ const DownloadProgress: React.FC = () => {
             sx={{
               width: 40,
               height: 40,
-              borderRadius: 3,
+              borderRadius: 1.5,
               background: `linear-gradient(135deg, ${currentTheme.colors.primary}33, ${currentTheme.colors.info}33)`,
               display: 'flex',
               alignItems: 'center',
@@ -109,7 +109,7 @@ const DownloadProgress: React.FC = () => {
               sx={{
                 mb: 2,
                 p: 2,
-                borderRadius: 3,
+                borderRadius: 1.5,
                 background: `${currentTheme.colors.secondary}11`,
                 border: `1px solid ${currentTheme.colors.secondary}33`,
               }}
@@ -126,7 +126,7 @@ const DownloadProgress: React.FC = () => {
                     background: `${currentTheme.colors.secondary}22`,
                     color: currentTheme.colors.secondary,
                     fontWeight: 600,
-                    borderRadius: 1.5,
+                    borderRadius: 0.75,
                     fontSize: '0.7rem',
                   }}
                 />
@@ -173,7 +173,7 @@ const DownloadProgress: React.FC = () => {
                   sx={{
                     mb: 2,
                     p: 2,
-                    borderRadius: 3,
+                    borderRadius: 1.5,
                     background: `${currentTheme.colors.surfaceAlt}44`,
                     border: `1px solid ${currentTheme.colors.border}`,
                   }}
@@ -195,7 +195,7 @@ const DownloadProgress: React.FC = () => {
                         background: statusStyle.bg,
                         color: statusStyle.color,
                         fontWeight: 600,
-                        borderRadius: 1.5,
+                        borderRadius: 0.75,
                         fontSize: '0.7rem',
                       }}
                     />
@@ -232,7 +232,7 @@ const DownloadProgress: React.FC = () => {
                       severity="error"
                       sx={{
                         mt: 1,
-                        borderRadius: 2,
+                        borderRadius: 1,
                         background: `${currentTheme.colors.error}15`,
                         border: `1px solid ${currentTheme.colors.error}33`,
                         py: 0,
@@ -272,7 +272,7 @@ const DownloadProgress: React.FC = () => {
                     key={download.id}
                     sx={{
                       mb: 1,
-                      borderRadius: 2,
+                      borderRadius: 1,
                       background: `${currentTheme.colors.surfaceAlt}33`,
                       border: `1px solid ${currentTheme.colors.border}`,
                     }}
@@ -299,7 +299,7 @@ const DownloadProgress: React.FC = () => {
                         background: statusStyle.bg,
                         color: statusStyle.color,
                         fontWeight: 600,
-                        borderRadius: 1.5,
+                        borderRadius: 0.75,
                         fontSize: '0.7rem',
                       }}
                     />

@@ -40,18 +40,18 @@ const ThemeSwitcher: React.FC = () => {
             color: 'text.primary',
             border: '1px solid',
             borderColor: 'divider',
-            borderRadius: 2,
-            width: 40,
-            height: 40,
+            borderRadius: 0.75,
+            width: 36,
+            height: 36,
             transition: 'all 0.2s ease',
             '&:hover': {
-              borderColor: 'primary.main',
-              boxShadow: `0 0 12px ${currentTheme.colors.primary}33`,
-              transform: 'scale(1.05)',
+              borderColor: `${currentTheme.colors.primary}88`,
+              boxShadow: `0 0 16px ${currentTheme.colors.primary}33`,
+              background: `${currentTheme.colors.primary}11`,
             },
           }}
         >
-          <PaletteIcon fontSize="small" />
+          <PaletteIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </Tooltip>
 
@@ -62,12 +62,14 @@ const ThemeSwitcher: React.FC = () => {
         PaperProps={{
           sx: {
             mt: 1,
-            minWidth: 200,
-            borderRadius: 3,
+            minWidth: 220,
+            borderRadius: 0.75,
             border: '1px solid',
-            borderColor: 'divider',
-            backdropFilter: 'blur(20px)',
-            background: `${currentTheme.colors.surface}ee`,
+            borderColor: `${currentTheme.colors.border}`,
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            background: `linear-gradient(135deg, ${currentTheme.colors.surface}ee, ${currentTheme.colors.surfaceAlt}dd)`,
+            boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px ${currentTheme.colors.border}44`,
           },
         }}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
@@ -87,7 +89,7 @@ const ThemeSwitcher: React.FC = () => {
             sx={{
               mx: 1,
               my: 0.5,
-              borderRadius: 2,
+              borderRadius: 0.75,
               gap: 1.5,
               transition: 'all 0.15s ease',
               '&:hover': {

@@ -98,7 +98,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ open, template, onClose
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 4,
+          borderRadius: 1.5,
           background: currentTheme.colors.surface,
           border: `1px solid ${currentTheme.colors.border}`,
         },
@@ -144,7 +144,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ open, template, onClose
           sx={{
             mt: 2,
             p: 1.5,
-            borderRadius: 2,
+            borderRadius: 1,
             background: `${currentTheme.colors.surfaceAlt}66`,
             border: `1px solid ${currentTheme.colors.border}`,
           }}
@@ -155,7 +155,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ open, template, onClose
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>
             {error}
           </Alert>
         )}

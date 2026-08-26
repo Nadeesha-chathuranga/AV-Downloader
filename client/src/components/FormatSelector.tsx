@@ -121,7 +121,7 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
               background: `${currentTheme.colors.primary}22`,
               color: currentTheme.colors.primary,
               fontWeight: 600,
-              borderRadius: 2,
+              borderRadius: 1,
               fontSize: '0.65rem',
             }}
           />
@@ -155,11 +155,11 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
         <TableContainer
           sx={{
             maxHeight: 340,
-            borderRadius: 2,
+            borderRadius: 1,
             border: `1px solid ${currentTheme.colors.border}`,
             background: `${currentTheme.colors.surfaceAlt}33`,
             '&::-webkit-scrollbar': { width: 6 },
-            '&::-webkit-scrollbar-thumb': { background: `${currentTheme.colors.border}`, borderRadius: 3 },
+            '&::-webkit-scrollbar-thumb': { background: `${currentTheme.colors.border}`, borderRadius: 1.5 },
             '&::-webkit-scrollbar-track': { background: 'transparent' },
           }}
         >
@@ -228,7 +228,7 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
                               fontWeight: 700,
                               background: `${currentTheme.colors.secondary}22`,
                               color: currentTheme.colors.secondary,
-                              borderRadius: 1,
+                              borderRadius: 0.75,
                             }}
                           />
                           {rec && (
@@ -289,7 +289,7 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
                 color: currentTheme.colors.primary,
                 fontWeight: 700,
                 fontFamily: 'monospace',
-                borderRadius: 1.5,
+                borderRadius: 0.75,
               }}
             />
           </Box>

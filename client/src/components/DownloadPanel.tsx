@@ -1,0 +1,528 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Typography,
+  LinearProgress,
+  Box,
+  IconButton,
+  Tooltip,
+  Collapse,
+  Slider,
+  Chip,
+  Divider,
+} from '@mui/material';
+import {
+  Download as DownloadIcon,
+  Error as ErrorIcon,
+  HourglassEmpty as HourglassEmptyIcon,
+  QueueMusic as PlaylistIcon,
+  Close as CloseIcon,
+  Speed as SpeedIcon,
+  Storage as StorageIcon,
+  Schedule as ScheduleIcon,
+  Settings as SettingsIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Queue as QueueIcon,
+} from '@mui/icons-material';
+import axios from 'axios';
+import { useSocket, DownloadInfo } from '../contexts/SocketContext';
+import { useAppTheme } from '../theme/ThemeContext';
+
+interface QueueState {
+  maxConcurrent: number;
+  activeCount: number;
+  queueLength: number;
+  queued: Array<{ id: string; url: string; info: DownloadInfo }>;
+  active: string[];
+}
+
+const DownloadPanel: React.FC = () => {
+  const { downloads, playlists, cancelDownload } = useSocket();
+  const { currentTheme } = useAppTheme();
+  const [queueState, setQueueState] = useState<QueueState | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [queueExpanded, setQueueExpanded] = useState(true);
+
+  const apiUrl =
+    process.env.NODE_ENV === 'production'
+      ? '/api'
+      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
+
+  const fetchQueue = useCallback(async () => {
+    try {
+      const res = await axios.get(`${apiUrl}/download/queue`);
+      setQueueState(res.data);
+    } catch {}
+  }, [apiUrl]);
+
+  useEffect(() => {
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 3000);
+    return () => clearInterval(interval);
+  }, [fetchQueue]);
+
+  const updateMaxConcurrent = async (val: number) => {
+    try {
+      await axios.put(`${apiUrl}/download/queue/settings`, { maxConcurrentDownloads: val });
+      fetchQueue();
+    } catch {}
+  };
+
+  const activeDownloads = downloads.filter(
+    (d) => d.status === 'starting' || d.status === 'downloading'
+  );
+  const failedDownloads = downloads.filter((d) => d.status === 'error');
+  const queuedCount = queueState?.queueLength ?? 0;
+  const maxConcurrent = queueState?.maxConcurrent ?? 3;
+  const activePlaylistIds = Object.keys(playlists).filter(
+    (id) => playlists[id].status === 'active'
+  );
+
+  const hasContent =
+    activeDownloads.length > 0 ||
+    queuedCount > 0 ||
+    failedDownloads.length > 0 ||
+    activePlaylistIds.length > 0;
+
+  const getStatusIcon = (status: string, size: number = 20) => {
+    switch (status) {
+      case 'starting':
+        return <HourglassEmptyIcon sx={{ color: currentTheme.colors.info, fontSize: size }} />;
+      case 'downloading':
+        return <DownloadIcon sx={{ color: currentTheme.colors.primary, fontSize: size }} />;
+      default:
+        return <HourglassEmptyIcon sx={{ fontSize: size }} />;
+    }
+  };
+
+  const dividerSx = { borderColor: `${currentTheme.colors.border}`, opacity: 0.5 };
+
+  return (
+    <Box
+      sx={{
+        borderRadius: 1.5,
+        backdropFilter: 'blur(20px) saturate(180%)',
+        background: `linear-gradient(135deg, ${currentTheme.colors.surface}dd, ${currentTheme.colors.surface}aa)`,
+        border: `1px solid ${currentTheme.colors.border}`,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <Box sx={{ p: 2.5, pb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: 1,
+              background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 4px 16px ${currentTheme.colors.primary}33`,
+              flexShrink: 0,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="#000">S</text>
+            </svg>
+          </Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
+            Active Downloads
+          </Typography>
+        </Box>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+          {activeDownloads.length} active &middot; {queuedCount} queued
+        </Typography>
+      </Box>
+
+      {!hasContent ? (
+        <Box sx={{ px: 2.5, pb: 2.5 }}>
+          <Box
+            sx={{
+              p: 4,
+              borderRadius: 1,
+              background: `${currentTheme.colors.background}44`,
+              border: `1px solid ${currentTheme.colors.border}`,
+              textAlign: 'center',
+            }}
+          >
+            <DownloadIcon sx={{ fontSize: 40, color: `${currentTheme.colors.primary}44`, mb: 1.5 }} />
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.85rem' }}>
+              No active downloads
+            </Typography>
+            <Typography variant="caption" sx={{ color: `${currentTheme.colors.textSecondary}88`, fontSize: '0.75rem' }}>
+              Paste a URL and click Download
+            </Typography>
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ px: 2.5, pb: 2.5 }}>
+          {/* Active Playlist Downloads */}
+          {activePlaylistIds.map((plId) => {
+            const pl = playlists[plId];
+            const pct = pl.total > 0 ? Math.round(((pl.completed + pl.failed) / pl.total) * 100) : 0;
+            return (
+              <Box key={plId} sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <PlaylistIcon sx={{ color: currentTheme.colors.secondary, fontSize: 18 }} />
+                  <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }} noWrap>
+                    Playlist Download
+                  </Typography>
+                  <Chip
+                    label={`${pl.completed + pl.failed}/${pl.total}`}
+                    size="small"
+                    sx={{
+                      background: `${currentTheme.colors.secondary}22`,
+                      color: currentTheme.colors.secondary,
+                      fontWeight: 700,
+                      borderRadius: 0.75,
+                      fontSize: '0.65rem',
+                      height: 22,
+                    }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: '100%', mr: 1.5 }}>
+                    <LinearProgress variant="determinate" value={pct} />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 700, color: currentTheme.colors.secondary, minWidth: 36, textAlign: 'right', fontSize: '0.75rem' }}
+                  >
+                    {pct}%
+                  </Typography>
+                </Box>
+                {pl.failed > 0 && (
+                  <Typography variant="caption" sx={{ color: currentTheme.colors.error, mt: 0.5, display: 'block', fontSize: '0.7rem' }}>
+                    {pl.failed} failed
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
+
+          {/* Active Downloads */}
+          {activeDownloads.map((download) => (
+            <Box
+              key={download.id}
+              className="downloading-indicator"
+              sx={{
+                mb: 2,
+                p: 2,
+                borderRadius: 1,
+                background: `${currentTheme.colors.background}66`,
+                border: `1px solid ${currentTheme.colors.border}`,
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                {getStatusIcon(download.status, 18)}
+                <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1, minWidth: 0 }} noWrap>
+                  {download.filename || 'Preparing...'}
+                </Typography>
+                <Tooltip title="Cancel">
+                  <IconButton
+                    size="small"
+                    onClick={() => cancelDownload(download.id)}
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      color: currentTheme.colors.error,
+                      '&:hover': { background: `${currentTheme.colors.error}22` },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: currentTheme.colors.primary, fontSize: '0.8rem' }}>
+                    {Math.round(download.progress)}%
+                  </Typography>
+                  {download.speed && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                      {download.speed}
+                    </Typography>
+                  )}
+                </Box>
+                <Box className="progress-glow">
+                  <LinearProgress
+                    variant="determinate"
+                    value={download.progress}
+                    sx={{
+                      height: 6,
+                      borderRadius: 0.75,
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 0.75,
+                        background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                        transition: 'transform 0.3s ease',
+                      },
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2,
+                  p: 1,
+                  borderRadius: 0.75,
+                  background: `${currentTheme.colors.background}88`,
+                }}
+              >
+                {download.totalSize && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <StorageIcon sx={{ fontSize: 12, color: currentTheme.colors.info }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
+                      {download.downloadedSize ? `${download.downloadedSize} / ${download.totalSize}` : download.totalSize}
+                    </Typography>
+                  </Box>
+                )}
+                {download.speed && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <SpeedIcon sx={{ fontSize: 12, color: currentTheme.colors.success }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
+                      {download.speed}
+                    </Typography>
+                  </Box>
+                )}
+                {download.eta && download.eta !== 'Unknown' && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <ScheduleIcon sx={{ fontSize: 12, color: currentTheme.colors.warning }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
+                      {download.eta}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          ))}
+
+          {/* Queue Section */}
+          {queuedCount > 0 && (
+            <>
+              <Divider sx={{ ...dividerSx, mb: 2 }} />
+              <Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    mb: 1,
+                    cursor: 'pointer',
+                    '&:hover': { opacity: 0.8 },
+                    transition: 'opacity 0.2s ease',
+                  }}
+                  onClick={() => setQueueExpanded(!queueExpanded)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <QueueIcon sx={{ fontSize: 18, color: currentTheme.colors.warning }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Queue
+                    </Typography>
+                    <Chip
+                      label={queuedCount}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        background: `${currentTheme.colors.warning}22`,
+                        color: currentTheme.colors.warning,
+                        borderRadius: 0.75,
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Tooltip title="Queue settings">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSettings(!showSettings);
+                        }}
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          color: showSettings ? currentTheme.colors.warning : 'text.secondary',
+                        }}
+                      >
+                        <SettingsIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                    {queueExpanded ? (
+                      <ExpandLessIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    ) : (
+                      <ExpandMoreIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    )}
+                  </Box>
+                </Box>
+
+                <Collapse in={showSettings}>
+                  <Box
+                    sx={{
+                      mb: 1.5,
+                      p: 1.5,
+                      borderRadius: 0.75,
+                      background: `${currentTheme.colors.background}88`,
+                      border: `1px solid ${currentTheme.colors.border}`,
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.7rem' }}>
+                      Max Concurrent: {maxConcurrent}
+                    </Typography>
+                    <Slider
+                      value={maxConcurrent}
+                      onChange={(_, v) => updateMaxConcurrent(v as number)}
+                      min={1}
+                      max={10}
+                      step={1}
+                      marks
+                      size="small"
+                      sx={{
+                        color: currentTheme.colors.warning,
+                        mt: 0.5,
+                        '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.6rem' },
+                        '& .MuiSlider-thumb': {
+                          width: 14,
+                          height: 14,
+                          '&:hover': { boxShadow: `0 0 0 6px ${currentTheme.colors.warning}18` },
+                        },
+                      }}
+                    />
+                  </Box>
+                </Collapse>
+
+                <Collapse in={queueExpanded}>
+                  {(queueState?.queued ?? []).slice(0, 15).map((job, i) => (
+                    <Box
+                      key={job.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        mb: 0.75,
+                        p: 1,
+                        borderRadius: 0.75,
+                        background: `${currentTheme.colors.background}44`,
+                        border: `1px solid ${currentTheme.colors.border}`,
+                        transition: 'all 0.15s ease',
+                        '&:hover': {
+                          borderColor: `${currentTheme.colors.primary}33`,
+                          background: `${currentTheme.colors.primary}08`,
+                        },
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{ color: currentTheme.colors.textSecondary, fontWeight: 700, fontSize: '0.65rem', minWidth: 20, textAlign: 'center' }}
+                      >
+                        {i + 1}
+                      </Typography>
+                      <Typography variant="caption" sx={{ flexGrow: 1, color: 'text.secondary', fontSize: '0.75rem' }} noWrap>
+                        {job.info?.filename || job.url}
+                      </Typography>
+                      <Tooltip title="Cancel">
+                        <IconButton
+                          size="small"
+                          onClick={() => cancelDownload(job.id)}
+                          sx={{
+                            width: 22,
+                            height: 22,
+                            color: currentTheme.colors.error,
+                            opacity: 0.6,
+                            '&:hover': { opacity: 1, background: `${currentTheme.colors.error}22` },
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 12 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  ))}
+                  {queuedCount > 15 && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center', display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+                      +{queuedCount - 15} more
+                    </Typography>
+                  )}
+                </Collapse>
+              </Box>
+            </>
+          )}
+
+          {/* Failed Downloads */}
+          {failedDownloads.length > 0 && (
+            <>
+              <Divider sx={{ ...dividerSx, mb: 2 }} />
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <ErrorIcon sx={{ fontSize: 18, color: currentTheme.colors.error }} />
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Failed
+                  </Typography>
+                  <Chip
+                    label={failedDownloads.length}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      background: `${currentTheme.colors.error}22`,
+                      color: currentTheme.colors.error,
+                      borderRadius: 0.75,
+                    }}
+                  />
+                </Box>
+                {failedDownloads.slice(-5).map((d) => (
+                  <Box
+                    key={d.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      mb: 0.75,
+                      p: 1,
+                      borderRadius: 0.75,
+                      background: `${currentTheme.colors.error}08`,
+                      border: `1px solid ${currentTheme.colors.error}18`,
+                    }}
+                  >
+                    <ErrorIcon sx={{ fontSize: 14, color: currentTheme.colors.error, flexShrink: 0 }} />
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }} noWrap display="block">
+                        {d.filename || 'Unknown'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: `${currentTheme.colors.error}aa`, fontSize: '0.65rem' }} noWrap display="block">
+                        {d.error || 'Unknown error'}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Dismiss">
+                      <IconButton
+                        size="small"
+                        onClick={() => cancelDownload(d.id)}
+                        sx={{
+                          width: 20,
+                          height: 20,
+                          color: 'text.secondary',
+                          opacity: 0.5,
+                          '&:hover': { opacity: 1, background: `${currentTheme.colors.error}22` },
+                        }}
+                      >
+                        <CloseIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+export default DownloadPanel;

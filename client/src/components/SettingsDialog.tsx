@@ -10,18 +10,18 @@ import {
   Slider,
   Divider,
   IconButton,
-  Chip,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
+  TextField,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Settings as SettingsIcon,
   Queue as QueueIcon,
-  VideoFile as VideoIcon,
   Palette as PaletteIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -34,19 +34,62 @@ interface SettingsDialogProps {
 
 interface AppSettings {
   maxConcurrentDownloads: number;
-  downloadPath: string;
-  defaultAudioFormat: string;
-  defaultVideoQuality: string;
+  downloadSpeedLimit: number;
 }
+
+const SPEED_PRESETS = [
+  { value: 0, label: 'Unlimited' },
+  { value: 256000, label: '250 KB/s' },
+  { value: 512000, label: '500 KB/s' },
+  { value: 768000, label: '750 KB/s' },
+  { value: 1048576, label: '1 MB/s' },
+  { value: 2097152, label: '2 MB/s' },
+  { value: 4194304, label: '4 MB/s' },
+  { value: 6291456, label: '6 MB/s' },
+  { value: 8388608, label: '8 MB/s' },
+  { value: 10485760, label: '10 MB/s' },
+  { value: 20971520, label: '20 MB/s' },
+  { value: 31457280, label: '30 MB/s' },
+  { value: 52428800, label: '50 MB/s' },
+  { value: 104857600, label: '100 MB/s' },
+  { value: -1, label: 'Manual' },
+];
+
+const MANUAL_INDEX = SPEED_PRESETS.length - 1;
+
+const formatSpeed = (bytesPerSec: number) => {
+  if (bytesPerSec === 0) return 'Unlimited';
+  if (bytesPerSec < 1048576) return `${Math.round(bytesPerSec / 1024)} KB/s`;
+  const mb = bytesPerSec / 1048576;
+  return `${mb % 1 === 0 ? mb.toFixed(0) : mb.toFixed(1)} MB/s`;
+};
+
+const getSpeedIndex = (bytesPerSec: number) => {
+  const idx = SPEED_PRESETS.findIndex((p) => p.value === bytesPerSec);
+  return idx >= 0 ? idx : MANUAL_INDEX;
+};
+
+const bytesToUnitValue = (bytes: number) => {
+  if (bytes >= 1048576) return { value: parseFloat((bytes / 1048576).toFixed(2)), unit: 'MB' };
+  return { value: Math.round(bytes / 1024), unit: 'KB' };
+};
+
+const unitToBytes = (value: number, unit: string) => {
+  if (unit === 'MB') return Math.round(value * 1048576);
+  return Math.round(value * 1024);
+};
+
+const QUICK_PRESETS = [0, 1048576, 5242880, 10485760, 52428800];
 
 const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   const { currentTheme, setTheme } = useAppTheme();
   const [settings, setSettings] = useState<AppSettings>({
     maxConcurrentDownloads: 3,
-    downloadPath: './downloads',
-    defaultAudioFormat: 'mp3',
-    defaultVideoQuality: 'best',
+    downloadSpeedLimit: 0,
   });
+  const [speedIndex, setSpeedIndex] = useState(0);
+  const [manualInput, setManualInput] = useState('');
+  const [manualUnit, setManualUnit] = useState<'KB' | 'MB'>('MB');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -58,10 +101,21 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   const fetchSettings = useCallback(async () => {
     try {
       const res = await axios.get(`${apiUrl}/download/queue`);
-      setSettings((prev) => ({
-        ...prev,
+      const limit = res.data.downloadSpeedLimit ?? 0;
+      setSettings({
         maxConcurrentDownloads: res.data.maxConcurrent || 3,
-      }));
+        downloadSpeedLimit: limit,
+      });
+      const idx = getSpeedIndex(limit);
+      setSpeedIndex(idx);
+      if (idx === MANUAL_INDEX) {
+        const { value, unit } = bytesToUnitValue(limit);
+        setManualInput(value.toString());
+        setManualUnit(unit as 'KB' | 'MB');
+      } else {
+        setManualInput('');
+        setManualUnit('MB');
+      }
     } catch {}
   }, [apiUrl]);
 
@@ -77,6 +131,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
     try {
       await axios.put(`${apiUrl}/download/queue/settings`, {
         maxConcurrentDownloads: settings.maxConcurrentDownloads,
+        downloadSpeedLimit: settings.downloadSpeedLimit,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -84,15 +139,22 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
     setLoading(false);
   };
 
-  const audioFormats = ['mp3', 'm4a', 'flac', 'wav', 'ogg', 'aac'];
-  const videoQualities = [
-    { value: 'best', label: 'Best Available' },
-    { value: '2160', label: '4K (2160p)' },
-    { value: '1440', label: '2K (1440p)' },
-    { value: '1080', label: '1080p' },
-    { value: '720', label: '720p' },
-    { value: '480', label: '480p' },
-  ];
+  const handleSliderChange = (_: any, value: number | number[]) => {
+    const idx = value as number;
+    setSpeedIndex(idx);
+    if (idx < MANUAL_INDEX) {
+      setSettings((prev) => ({ ...prev, downloadSpeedLimit: SPEED_PRESETS[idx].value }));
+      setManualInput('');
+    }
+  };
+
+  const handleManualSubmit = () => {
+    const num = parseFloat(manualInput);
+    if (!isNaN(num) && num > 0) {
+      const bytes = unitToBytes(num, manualUnit);
+      setSettings((prev) => ({ ...prev, downloadSpeedLimit: bytes }));
+    }
+  };
 
   return (
     <Dialog
@@ -105,7 +167,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
           background: `${currentTheme.colors.surface}ee`,
           backdropFilter: 'blur(20px)',
           border: `1px solid ${currentTheme.colors.border}`,
-          borderRadius: 4,
+          borderRadius: 1.5,
         },
       }}
     >
@@ -122,7 +184,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
             sx={{
               width: 36,
               height: 36,
-              borderRadius: 2.5,
+              borderRadius: 1,
               background: `linear-gradient(135deg, ${currentTheme.colors.primary}33, ${currentTheme.colors.secondary}33)`,
               display: 'flex',
               alignItems: 'center',
@@ -157,7 +219,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
               onChange={(e) => setTheme(e.target.value as string)}
             >
               {themes.map((t) => (
-                <MenuItem key={t.name} value={t.name}>
+                <MenuItem key={t.id} value={t.id}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: t.colors.primary }} />
@@ -201,64 +263,134 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
 
         <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />
 
-        {/* Defaults Section */}
+        {/* Speed Limit Section */}
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-            <VideoIcon sx={{ fontSize: 18, color: currentTheme.colors.info }} />
+            <SpeedIcon sx={{ fontSize: 18, color: currentTheme.colors.info }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
-              Defaults
+              Speed Limit
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary' }}>
+            Per-download speed limit: <strong>{speedIndex === MANUAL_INDEX && settings.downloadSpeedLimit > 0 ? formatSpeed(settings.downloadSpeedLimit) : formatSpeed(settings.downloadSpeedLimit)}</strong>
+          </Typography>
+          <Slider
+            value={speedIndex}
+            onChange={handleSliderChange}
+            min={0}
+            max={MANUAL_INDEX}
+            step={1}
+            marks={SPEED_PRESETS.map((p, i) => ({
+              value: i,
+              label: '',
+            }))}
+            sx={{
+              color: currentTheme.colors.info,
+              '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.6rem' },
+            }}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+              Unlimited
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+              Manual
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Audio Format</InputLabel>
-              <Select
-                value={settings.defaultAudioFormat}
-                label="Audio Format"
-                onChange={(e) => setSettings((prev) => ({ ...prev, defaultAudioFormat: e.target.value }))}
+          {/* Quick preset buttons */}
+          <Box sx={{ display: 'flex', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
+            {QUICK_PRESETS.map((presetValue) => (
+              <Button
+                key={presetValue}
+                size="small"
+                variant={settings.downloadSpeedLimit === presetValue && speedIndex < MANUAL_INDEX ? 'contained' : 'outlined'}
+                onClick={() => {
+                  const idx = getSpeedIndex(presetValue);
+                  setSpeedIndex(idx);
+                  setSettings((prev) => ({ ...prev, downloadSpeedLimit: presetValue }));
+                  setManualInput('');
+                }}
+                sx={{
+                  fontSize: '0.65rem',
+                  minWidth: 0,
+                  py: 0.25,
+                  px: 1,
+                  textTransform: 'none',
+                  fontWeight: settings.downloadSpeedLimit === presetValue && speedIndex < MANUAL_INDEX ? 700 : 400,
+                }}
               >
-                {audioFormats.map((fmt) => (
-                  <MenuItem key={fmt} value={fmt}>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500, textTransform: 'uppercase' }}>{fmt}</Typography>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth size="small">
-              <InputLabel>Video Quality</InputLabel>
-              <Select
-                value={settings.defaultVideoQuality}
-                label="Video Quality"
-                onChange={(e) => setSettings((prev) => ({ ...prev, defaultVideoQuality: e.target.value }))}
-              >
-                {videoQualities.map((q) => (
-                  <MenuItem key={q.value} value={q.value}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{q.label}</Typography>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                {formatSpeed(presetValue)}
+              </Button>
+            ))}
           </Box>
-        </Box>
 
-        <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />
-
-        {/* Info Section */}
-        <Box sx={{ p: 2, borderRadius: 3, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-            Universal Downloader
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-            A modern web-based video and audio downloader powered by yt-dlp.
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 0.5, mt: 1 }}>
-            <Chip label="React 19" size="small" sx={{ fontSize: '0.65rem', height: 22, borderRadius: 1.5 }} />
-            <Chip label="MUI v7" size="small" sx={{ fontSize: '0.65rem', height: 22, borderRadius: 1.5 }} />
-            <Chip label="yt-dlp" size="small" sx={{ fontSize: '0.65rem', height: 22, borderRadius: 1.5 }} />
-            <Chip label="Socket.io" size="small" sx={{ fontSize: '0.65rem', height: 22, borderRadius: 1.5 }} />
-          </Box>
+          {/* Manual input */}
+          {speedIndex === MANUAL_INDEX && (
+            <Box sx={{ mt: 2, p: 1.5, borderRadius: 1, background: `${currentTheme.colors.background}88`, border: `1px solid ${currentTheme.colors.border}` }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mb: 1, display: 'block' }}>
+                Enter custom speed limit per download:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  onBlur={handleManualSubmit}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit(); }}
+                  placeholder="e.g. 3.5"
+                  inputProps={{ min: 0, step: 0.1 }}
+                  sx={{
+                    flex: 1,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 0.75,
+                      fontSize: '0.85rem',
+                    },
+                  }}
+                />
+                <FormControl size="small" sx={{ minWidth: 80 }}>
+                  <Select
+                    value={manualUnit}
+                    onChange={(e) => {
+                      const newUnit = e.target.value as 'KB' | 'MB';
+                      if (manualInput) {
+                        const num = parseFloat(manualInput);
+                        if (!isNaN(num) && num > 0) {
+                          const currentBytes = unitToBytes(num, manualUnit);
+                          if (newUnit === 'MB') {
+                            setManualInput((currentBytes / 1048576).toFixed(2));
+                          } else {
+                            setManualInput(Math.round(currentBytes / 1024).toString());
+                          }
+                        }
+                      }
+                      setManualUnit(newUnit);
+                    }}
+                    sx={{ borderRadius: 0.75, fontSize: '0.85rem' }}
+                  >
+                    <MenuItem value="KB">KB/s</MenuItem>
+                    <MenuItem value="MB">MB/s</MenuItem>
+                  </Select>
+                </FormControl>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleManualSubmit}
+                  disabled={!manualInput || isNaN(parseFloat(manualInput)) || parseFloat(manualInput) <= 0}
+                  sx={{
+                    minWidth: 0,
+                    px: 1.5,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                    textTransform: 'none',
+                  }}
+                >
+                  Set
+                </Button>
+              </Box>
+            </Box>
+          )}
         </Box>
       </DialogContent>
 

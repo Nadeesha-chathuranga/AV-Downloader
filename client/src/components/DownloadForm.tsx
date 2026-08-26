@@ -304,10 +304,10 @@ const DownloadForm: React.FC = () => {
         if (!isPlaylist) {
           setVideoInfo({
             id: 'demo123',
-            title: 'Demo Video - Universal Downloader Preview',
+            title: 'Demo Video - Seal Web Downloader Preview',
             description: 'Backend server needs to be running.',
             duration: 180,
-            uploader: 'Universal Downloader Demo',
+            uploader: 'Seal Web Downloader Demo',
             upload_date: '20250826',
             view_count: 1000,
             thumbnail: 'https://via.placeholder.com/320x180/1976d2/ffffff?text=Demo+Video',
@@ -449,7 +449,7 @@ const DownloadForm: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
           <Box
             sx={{
-              width: 40, height: 40, borderRadius: 3,
+              width: 40, height: 40, borderRadius: 1.5,
               background: `linear-gradient(135deg, ${currentTheme.colors.primary}33, ${currentTheme.colors.secondary}33)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
@@ -488,7 +488,7 @@ const DownloadForm: React.FC = () => {
                 sx={{
                   background: `${currentTheme.colors.secondary}22`,
                   color: currentTheme.colors.secondary,
-                  fontWeight: 600, borderRadius: 2,
+                  fontWeight: 600, borderRadius: 1,
                   '& .MuiChip-icon': { color: 'inherit' },
                 }}
               />
@@ -536,7 +536,7 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         <Collapse in={showAdvanced}>
-          <Box sx={{ mb: 3, p: 2.5, borderRadius: 3, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+          <Box sx={{ mb: 3, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Options
             </Typography>
@@ -696,7 +696,7 @@ const DownloadForm: React.FC = () => {
                               fontWeight: 600,
                               fontSize: '0.72rem',
                               height: 28,
-                              borderRadius: 2,
+                              borderRadius: 1,
                               cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               background: active ? `${currentTheme.colors.primary}` : `${currentTheme.colors.surfaceAlt}`,
@@ -767,7 +767,7 @@ const DownloadForm: React.FC = () => {
               }}
             />
 
-            <Box sx={{ p: 1.5, borderRadius: 2, background: `${currentTheme.colors.surface}88`, border: `1px solid ${currentTheme.colors.border}` }}>
+            <Box sx={{ p: 1.5, borderRadius: 1, background: `${currentTheme.colors.surface}88`, border: `1px solid ${currentTheme.colors.border}` }}>
               <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-all' }}>
                 {getCommandPreview()}
               </Typography>
@@ -776,13 +776,13 @@ const DownloadForm: React.FC = () => {
         </Collapse>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 3, background: `${currentTheme.colors.error}15`, border: `1px solid ${currentTheme.colors.error}33` }}>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.error}15`, border: `1px solid ${currentTheme.colors.error}33` }}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2, borderRadius: 3, background: `${currentTheme.colors.success}15`, border: `1px solid ${currentTheme.colors.success}33` }}>
+          <Alert severity="success" sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.success}15`, border: `1px solid ${currentTheme.colors.success}33` }}>
             {success}
           </Alert>
         )}
@@ -792,19 +792,19 @@ const DownloadForm: React.FC = () => {
         )}
 
         {videoInfo && (
-          <Card sx={{ mt: 2, background: `${currentTheme.colors.surfaceAlt}44`, border: `1px solid ${currentTheme.colors.border}`, borderRadius: 3 }}>
+          <Card sx={{ mt: 2, background: `${currentTheme.colors.surfaceAlt}44`, border: `1px solid ${currentTheme.colors.border}`, borderRadius: 1.5 }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', gap: 2.5 }}>
                 {videoInfo.thumbnail && (
-                  <Box component="img" src={videoInfo.thumbnail} alt="Thumbnail" sx={{ width: 160, height: 90, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />
+                  <Box component="img" src={videoInfo.thumbnail} alt="Thumbnail" sx={{ width: 160, height: 90, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }} />
                 )}
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>{videoInfo.title}</Typography>
                   <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>by {videoInfo.uploader}</Typography>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Chip size="small" label={formatDuration(videoInfo.duration)} sx={{ background: `${currentTheme.colors.primary}22`, color: currentTheme.colors.primary, fontWeight: 600, borderRadius: 1.5 }} />
-                    <Chip size="small" label={`${videoInfo.view_count?.toLocaleString()} views`} sx={{ background: `${currentTheme.colors.secondary}22`, color: currentTheme.colors.secondary, fontWeight: 600, borderRadius: 1.5 }} />
-                    <Chip size="small" label={videoInfo.extractor} sx={{ background: `${currentTheme.colors.info}22`, color: currentTheme.colors.info, fontWeight: 600, borderRadius: 1.5 }} />
+                    <Chip size="small" label={formatDuration(videoInfo.duration)} sx={{ background: `${currentTheme.colors.primary}22`, color: currentTheme.colors.primary, fontWeight: 600, borderRadius: 0.75 }} />
+                    <Chip size="small" label={`${videoInfo.view_count?.toLocaleString()} views`} sx={{ background: `${currentTheme.colors.secondary}22`, color: currentTheme.colors.secondary, fontWeight: 600, borderRadius: 0.75 }} />
+                    <Chip size="small" label={videoInfo.extractor} sx={{ background: `${currentTheme.colors.info}22`, color: currentTheme.colors.info, fontWeight: 600, borderRadius: 0.75 }} />
                   </Box>
                 </Box>
               </Box>

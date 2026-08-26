@@ -107,7 +107,7 @@ const DownloadQueue: React.FC<DownloadQueueProps> = ({ downloads, onCancel }) =>
               sx={{
                 width: 40,
                 height: 40,
-                borderRadius: 3,
+                borderRadius: 1.5,
                 background: `linear-gradient(135deg, ${currentTheme.colors.warning}33, ${currentTheme.colors.error}33)`,
                 display: 'flex',
                 alignItems: 'center',
@@ -156,7 +156,7 @@ const DownloadQueue: React.FC<DownloadQueueProps> = ({ downloads, onCancel }) =>
             sx={{
               mb: 2,
               p: 2,
-              borderRadius: 3,
+              borderRadius: 1.5,
               background: `${currentTheme.colors.surfaceAlt}66`,
               border: `1px solid ${currentTheme.colors.border}`,
             }}
@@ -206,7 +206,7 @@ const DownloadQueue: React.FC<DownloadQueueProps> = ({ downloads, onCancel }) =>
                       gap: 1.5,
                       mb: 1,
                       p: 1.5,
-                      borderRadius: 2,
+                      borderRadius: 1,
                       background: `${currentTheme.colors.primary}11`,
                       border: `1px solid ${currentTheme.colors.primary}33`,
                     }}
@@ -258,7 +258,7 @@ const DownloadQueue: React.FC<DownloadQueueProps> = ({ downloads, onCancel }) =>
                       gap: 1.5,
                       mb: 1,
                       p: 1.5,
-                      borderRadius: 2,
+                      borderRadius: 1,
                       background: `${currentTheme.colors.surfaceAlt}44`,
                       border: `1px solid ${currentTheme.colors.border}`,
                     }}
@@ -271,7 +271,7 @@ const DownloadQueue: React.FC<DownloadQueueProps> = ({ downloads, onCancel }) =>
                         color: currentTheme.colors.secondary,
                         fontWeight: 700,
                         minWidth: 36,
-                        borderRadius: 1.5,
+                        borderRadius: 0.75,
                       }}
                     />
                     <Box sx={{ flexGrow: 1, minWidth: 0 }}>

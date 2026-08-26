@@ -115,7 +115,7 @@ const CommandTemplates: React.FC<CommandTemplatesProps> = ({ onApplyTemplate }) 
       key={template.id}
       sx={{
         mb: 1,
-        borderRadius: 2,
+        borderRadius: 1,
         background: `${currentTheme.colors.surfaceAlt}33`,
         border: `1px solid ${currentTheme.colors.border}`,
         transition: 'all 0.2s ease',
@@ -152,7 +152,7 @@ const CommandTemplates: React.FC<CommandTemplatesProps> = ({ onApplyTemplate }) 
                 background: `${currentTheme.colors.primary}11`,
                 px: 0.5,
                 py: 0.25,
-                borderRadius: 1,
+                borderRadius: 0.75,
                 display: 'inline-block',
                 maxWidth: '100%',
                 overflow: 'hidden',
@@ -221,7 +221,7 @@ const CommandTemplates: React.FC<CommandTemplatesProps> = ({ onApplyTemplate }) 
               sx={{
                 width: 40,
                 height: 40,
-                borderRadius: 3,
+                borderRadius: 1.5,
                 background: `linear-gradient(135deg, ${currentTheme.colors.warning}33, ${currentTheme.colors.primary}33)`,
                 display: 'flex',
                 alignItems: 'center',
@@ -262,7 +262,7 @@ const CommandTemplates: React.FC<CommandTemplatesProps> = ({ onApplyTemplate }) 
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }} onClose={() => setError('')}>
             {error}
           </Alert>
         )}

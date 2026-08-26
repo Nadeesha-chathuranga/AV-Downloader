@@ -8,6 +8,10 @@ export interface DownloadInfo {
   progress: number;
   filename: string;
   error: string | null;
+  totalSize?: string;
+  downloadedSize?: string;
+  speed?: string;
+  eta?: string;
   playlistId?: string;
   playlistIndex?: number;
   playlistTotal?: number;

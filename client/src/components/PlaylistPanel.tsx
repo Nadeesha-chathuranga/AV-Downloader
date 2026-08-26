@@ -76,7 +76,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, load
         mt: 2,
         background: `${currentTheme.colors.surfaceAlt}44`,
         border: `1px solid ${currentTheme.colors.border}`,
-        borderRadius: 3,
+        borderRadius: 1.5,
         animation: 'fadeIn 0.3s ease',
       }}
     >
@@ -140,7 +140,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, load
           sx={{
             maxHeight: 320,
             overflowY: 'auto',
-            borderRadius: 2,
+            borderRadius: 1,
             background: `${currentTheme.colors.surface}44`,
             border: `1px solid ${currentTheme.colors.border}`,
             '&::-webkit-scrollbar': {
@@ -148,7 +148,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, load
             },
             '&::-webkit-scrollbar-thumb': {
               background: `${currentTheme.colors.border}`,
-              borderRadius: 3,
+              borderRadius: 1.5,
             },
             '&::-webkit-scrollbar-track': {
               background: 'transparent',
@@ -242,7 +242,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, load
               background: selected.size > 0 ? `${currentTheme.colors.primary}22` : `${currentTheme.colors.textSecondary}22`,
               color: selected.size > 0 ? currentTheme.colors.primary : currentTheme.colors.textSecondary,
               fontWeight: 600,
-              borderRadius: 2,
+              borderRadius: 1,
             }}
           />
 

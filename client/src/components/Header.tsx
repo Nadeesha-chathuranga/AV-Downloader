@@ -10,13 +10,11 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
-  Download as DownloadIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
-import ThemeSwitcher from '../theme/ThemeSwitcher';
 import SettingsDialog from './SettingsDialog';
 import { useAppTheme } from '../theme/ThemeContext';
 
@@ -47,16 +45,27 @@ const Header: React.FC = () => {
   return (
     <>
       <AppBar
-        position="static"
+        position="sticky"
         elevation={0}
         sx={{
-          background: `${currentTheme.colors.surface}cc`,
-          backdropFilter: 'blur(20px)',
+          background: `linear-gradient(180deg, ${currentTheme.colors.background}f0, ${currentTheme.colors.background}dd)`,
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
           borderBottom: '1px solid',
-          borderColor: 'divider',
+          borderColor: `${currentTheme.colors.border}`,
+          zIndex: 1200,
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '1px',
+            background: `linear-gradient(90deg, transparent, ${currentTheme.colors.primary}66, ${currentTheme.colors.secondary}66, transparent)`,
+          },
         }}
       >
-        <Toolbar sx={{ py: 0.5 }}>
+        <Toolbar sx={{ py: 0.5, px: { xs: 2, md: 4 } }}>
           <Box
             sx={{
               display: 'flex',
@@ -67,17 +76,20 @@ const Header: React.FC = () => {
           >
             <Box
               sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 2.5,
+                width: 38,
+                height: 38,
+                borderRadius: 1,
                 background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: `0 4px 12px ${currentTheme.colors.primary}44`,
+                boxShadow: `0 4px 16px ${currentTheme.colors.primary}44`,
+                flexShrink: 0,
               }}
             >
-              <DownloadIcon sx={{ color: '#fff', fontSize: 20 }} />
+              <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="#000">S</text>
+              </svg>
             </Box>
             <Box>
               <Typography
@@ -86,18 +98,19 @@ const Header: React.FC = () => {
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
                   lineHeight: 1.2,
-                  fontSize: '1.1rem',
+                  fontSize: '1.05rem',
                   color: 'text.primary',
                 }}
               >
-                Universal Downloader
+                Seal Web Downloader
               </Typography>
               <Typography
                 variant="caption"
                 sx={{
                   color: 'text.secondary',
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.05em',
+                  fontSize: '0.65rem',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
                 }}
               >
                 Video & Audio Downloader
@@ -119,9 +132,11 @@ const Header: React.FC = () => {
               }
               sx={{
                 fontWeight: 600,
-                borderRadius: 2,
+                borderRadius: 0.75,
+                fontSize: '0.75rem',
+                height: 28,
                 '& .MuiChip-icon': {
-                  fontSize: 16,
+                  fontSize: 14,
                 },
               }}
             />
@@ -129,14 +144,24 @@ const Header: React.FC = () => {
               <IconButton
                 onClick={() => setSettingsOpen(true)}
                 sx={{
+                  width: 36,
+                  height: 36,
                   color: 'text.secondary',
-                  '&:hover': { color: currentTheme.colors.primary, background: `${currentTheme.colors.primary}11` },
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 0.75,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    color: currentTheme.colors.primary,
+                    borderColor: `${currentTheme.colors.primary}66`,
+                    background: `${currentTheme.colors.primary}11`,
+                    boxShadow: `0 0 12px ${currentTheme.colors.primary}22`,
+                  },
                 }}
               >
-                <SettingsIcon fontSize="small" />
+                <SettingsIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
-            <ThemeSwitcher />
           </Box>
         </Toolbar>
       </AppBar>
@@ -149,6 +174,9 @@ const Header: React.FC = () => {
           sx={{
             borderRadius: 0,
             fontWeight: 500,
+            background: `${currentTheme.colors.warning}15`,
+            border: 'none',
+            borderBottom: `1px solid ${currentTheme.colors.warning}33`,
           }}
         >
           <strong>Backend Offline:</strong> Server not responding. Please ensure the backend server is running.

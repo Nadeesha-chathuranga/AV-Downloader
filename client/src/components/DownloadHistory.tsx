@@ -47,46 +47,11 @@ const DownloadHistory: React.FC = () => {
     setError('');
 
     try {
-      if (process.env.NODE_ENV === 'development') {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const mockFiles = [
-          {
-            name: 'Sample Video 1.mp4',
-            size: 15728640,
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            modifiedAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            name: 'Audio Track.mp3',
-            size: 5242880,
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-            modifiedAt: new Date(Date.now() - 172800000).toISOString(),
-          },
-          {
-            name: 'Tutorial Video.webm',
-            size: 25165824,
-            createdAt: new Date(Date.now() - 259200000).toISOString(),
-            modifiedAt: new Date(Date.now() - 259200000).toISOString(),
-          },
-        ];
-        setFiles(mockFiles);
-        return;
-      }
-
       const response = await axios.get(`${apiUrl}/download/list`);
       setFiles(response.data);
     } catch (error: any) {
-      console.warn('Backend not available, using mock data');
-      const mockFiles = [
-        {
-          name: 'Example Download.mp4',
-          size: 10485760,
-          createdAt: new Date().toISOString(),
-          modifiedAt: new Date().toISOString(),
-        },
-      ];
-      setFiles(mockFiles);
-      setError('');
+      setError(error.response?.data?.error || 'Failed to load download history');
+      setFiles([]);
     } finally {
       setLoading(false);
     }
@@ -165,7 +130,7 @@ const DownloadHistory: React.FC = () => {
               sx={{
                 width: 40,
                 height: 40,
-                borderRadius: 3,
+                borderRadius: 1.5,
                 background: `linear-gradient(135deg, ${currentTheme.colors.success}33, ${currentTheme.colors.secondary}33)`,
                 display: 'flex',
                 alignItems: 'center',
@@ -176,7 +141,7 @@ const DownloadHistory: React.FC = () => {
             </Box>
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                History
+                Download History
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {files.length} files
@@ -203,7 +168,7 @@ const DownloadHistory: React.FC = () => {
             severity="error"
             sx={{
               mb: 2,
-              borderRadius: 3,
+              borderRadius: 1.5,
               background: `${currentTheme.colors.error}15`,
               border: `1px solid ${currentTheme.colors.error}33`,
             }}
@@ -233,7 +198,7 @@ const DownloadHistory: React.FC = () => {
                   key={index}
                   sx={{
                     mb: 1,
-                    borderRadius: 2,
+                    borderRadius: 1,
                     background: `${currentTheme.colors.surfaceAlt}33`,
                     border: `1px solid ${currentTheme.colors.border}`,
                     transition: 'all 0.2s ease',
@@ -247,7 +212,7 @@ const DownloadHistory: React.FC = () => {
                     sx={{
                       width: 36,
                       height: 36,
-                      borderRadius: 2,
+                      borderRadius: 1,
                       background: typeStyle.bg,
                       display: 'flex',
                       alignItems: 'center',
@@ -283,7 +248,7 @@ const DownloadHistory: React.FC = () => {
                       background: typeStyle.bg,
                       color: typeStyle.color,
                       fontWeight: 600,
-                      borderRadius: 1.5,
+                      borderRadius: 0.75,
                       fontSize: '0.65rem',
                       mr: 1,
                     }}

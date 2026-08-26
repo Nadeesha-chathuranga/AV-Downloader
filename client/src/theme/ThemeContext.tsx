@@ -22,7 +22,7 @@ const STORAGE_KEY = 'universal-downloader-theme';
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeId, setThemeId] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved || 'dark';
+    return saved || 'cyberpunk';
   });
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     () =>
       createTheme({
         palette: {
-          mode: currentTheme.id === 'light' ? 'light' : 'dark',
+          mode: 'dark',
           primary: { main: currentTheme.colors.primary },
           secondary: { main: currentTheme.colors.secondary },
           background: {
@@ -57,33 +57,58 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           h5: { fontWeight: 600 },
           h6: { fontWeight: 600 },
         },
-        shape: { borderRadius: 16 },
+        shape: { borderRadius: 12 },
         components: {
+          MuiCssBaseline: {
+            styleOverrides: {
+              body: {
+                backgroundColor: currentTheme.colors.background,
+              },
+            },
+          },
           MuiCard: {
             styleOverrides: {
               root: {
-                backdropFilter: 'blur(10px)',
-                background: `${currentTheme.colors.surface}cc`,
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                background: `linear-gradient(135deg, ${currentTheme.colors.surface}dd, ${currentTheme.colors.surface}aa)`,
                 border: `1px solid ${currentTheme.colors.border}`,
-                borderRadius: 16,
+                borderRadius: 12,
                 transition: 'all 0.3s ease',
+                boxShadow: `0 4px 24px rgba(0, 0, 0, 0.2)`,
               },
             },
           },
           MuiButton: {
             styleOverrides: {
               root: {
-                borderRadius: 12,
+                borderRadius: 6,
                 textTransform: 'none',
                 fontWeight: 600,
-                padding: '8px 24px',
+                padding: '10px 24px',
                 transition: 'all 0.2s ease',
+                fontSize: '0.9rem',
               },
               containedPrimary: {
                 background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                color: '#000',
+                boxShadow: `0 4px 20px ${currentTheme.colors.primary}33`,
                 '&:hover': {
-                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}dd, ${currentTheme.colors.secondary}dd)`,
-                  boxShadow: `0 4px 20px ${currentTheme.colors.primary}44`,
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}ee, ${currentTheme.colors.secondary}ee)`,
+                  boxShadow: `0 6px 28px ${currentTheme.colors.primary}55`,
+                  transform: 'translateY(-1px)',
+                },
+                '&:active': {
+                  transform: 'translateY(0)',
+                },
+              },
+              outlinedPrimary: {
+                borderColor: `${currentTheme.colors.primary}66`,
+                color: currentTheme.colors.primary,
+                '&:hover': {
+                  borderColor: currentTheme.colors.primary,
+                  background: `${currentTheme.colors.primary}11`,
+                  boxShadow: `0 0 20px ${currentTheme.colors.primary}22`,
                 },
               },
             },
@@ -98,8 +123,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           MuiChip: {
             styleOverrides: {
               root: {
-                borderRadius: 8,
+                borderRadius: 6,
                 fontWeight: 500,
+                transition: 'all 0.15s ease',
               },
             },
           },
@@ -107,14 +133,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             styleOverrides: {
               root: {
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 12,
+                  borderRadius: 6,
                   transition: 'all 0.2s ease',
                   '&:hover fieldset': {
-                    borderColor: currentTheme.colors.primary,
+                    borderColor: `${currentTheme.colors.primary}88`,
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: currentTheme.colors.primary,
-                    boxShadow: `0 0 0 2px ${currentTheme.colors.primary}22`,
+                    boxShadow: `0 0 0 3px ${currentTheme.colors.primary}18`,
                   },
                 },
               },
@@ -123,9 +149,28 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           MuiLinearProgress: {
             styleOverrides: {
               root: {
-                borderRadius: 8,
-                height: 8,
+                borderRadius: 6,
+                height: 6,
                 backgroundColor: currentTheme.colors.surfaceAlt,
+                overflow: 'hidden',
+              },
+              bar: {
+                borderRadius: 6,
+                background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+              },
+            },
+          },
+          MuiSelect: {
+            styleOverrides: {
+              root: {
+                borderRadius: 6,
+              },
+            },
+          },
+          MuiMenuItem: {
+            styleOverrides: {
+              root: {
+                borderRadius: 6,
               },
             },
           },
