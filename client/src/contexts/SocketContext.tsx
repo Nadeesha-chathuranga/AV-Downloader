@@ -137,11 +137,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     newSocket.on('download-cancelled', (data: { id: string }) => {
-      setDownloads((prev) =>
-        prev.map((d) =>
-          d.id === data.id ? { ...d, status: 'cancelled' as const, error: 'Cancelled by user' } : d
-        )
-      );
+      setDownloads((prev) => prev.filter((d) => d.id !== data.id));
     });
 
     newSocket.on('playlist-start', (data: { playlistId: string; total: number }) => {

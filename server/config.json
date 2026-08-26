@@ -1,4 +1,6 @@
 {
   "maxConcurrentDownloads": 3,
-  "downloadSpeedLimit": 1048576
+  "downloadSpeedLimit": 0,
+  "cookieBrowser": "",
+  "cookieFilePath": "C:\\Users\\Admin\\Downloads\\www.youtube.com_cookies.txt"
 }

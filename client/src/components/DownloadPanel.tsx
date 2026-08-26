@@ -9,6 +9,12 @@ import {
   Slider,
   Chip,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -18,7 +24,6 @@ import {
   Close as CloseIcon,
   Speed as SpeedIcon,
   Storage as StorageIcon,
-  Schedule as ScheduleIcon,
   Settings as SettingsIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -43,6 +48,7 @@ const DownloadPanel: React.FC = () => {
   const [queueState, setQueueState] = useState<QueueState | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [queueExpanded, setQueueExpanded] = useState(true);
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -220,7 +226,7 @@ const DownloadPanel: React.FC = () => {
                 <Tooltip title="Cancel">
                   <IconButton
                     size="small"
-                    onClick={() => cancelDownload(download.id)}
+                    onClick={() => setCancelTarget({ id: download.id, name: download.filename || 'this download' })}
                     sx={{
                       width: 24,
                       height: 24,
@@ -238,9 +244,9 @@ const DownloadPanel: React.FC = () => {
                   <Typography variant="caption" sx={{ fontWeight: 700, color: currentTheme.colors.primary, fontSize: '0.8rem' }}>
                     {Math.round(download.progress)}%
                   </Typography>
-                  {download.speed && (
+                  {download.eta && download.eta !== 'Unknown' && (
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                      {download.speed}
+                      ETA {download.eta}
                     </Typography>
                   )}
                 </Box>
@@ -283,14 +289,6 @@ const DownloadPanel: React.FC = () => {
                     <SpeedIcon sx={{ fontSize: 12, color: currentTheme.colors.success }} />
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
                       {download.speed}
-                    </Typography>
-                  </Box>
-                )}
-                {download.eta && download.eta !== 'Unknown' && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <ScheduleIcon sx={{ fontSize: 12, color: currentTheme.colors.warning }} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
-                      {download.eta}
                     </Typography>
                   </Box>
                 )}
@@ -425,7 +423,7 @@ const DownloadPanel: React.FC = () => {
                       <Tooltip title="Cancel">
                         <IconButton
                           size="small"
-                          onClick={() => cancelDownload(job.id)}
+                          onClick={() => setCancelTarget({ id: job.id, name: job.info?.filename || job.url || 'this download' })}
                           sx={{
                             width: 22,
                             height: 22,
@@ -517,6 +515,55 @@ const DownloadPanel: React.FC = () => {
           )}
         </Box>
       )}
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        PaperProps={{
+          sx: {
+            background: `linear-gradient(135deg, ${currentTheme.colors.surface}ee, ${currentTheme.colors.surface}cc)`,
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${currentTheme.colors.border}`,
+            borderRadius: 1.5,
+            minWidth: 360,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Cancel Download?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: 'text.secondary' }}>
+            Are you sure you want to stop downloading <strong style={{ color: 'text.primary' }}>{cancelTarget?.name}</strong>?             The partially downloaded file will be deleted from disk.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setCancelTarget(null)}
+            sx={{
+              borderColor: currentTheme.colors.border,
+              color: 'text.primary',
+              '&:hover': { borderColor: currentTheme.colors.primary, background: `${currentTheme.colors.primary}11` },
+            }}
+          >
+            Keep Downloading
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              if (cancelTarget) {
+                cancelDownload(cancelTarget.id);
+                setCancelTarget(null);
+              }
+            }}
+            sx={{ fontWeight: 700 }}
+          >
+            Stop Download
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -14,6 +14,7 @@ import {
   Typography,
   Chip,
   Alert,
+  CircularProgress,
   Collapse,
   IconButton,
   Tooltip,
@@ -497,18 +498,21 @@ const DownloadForm: React.FC = () => {
           </Collapse>
 
           <Box sx={{ mt: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
-            <Button
-              variant="outlined"
-              startIcon={<InfoIcon />}
-              onClick={fetchVideoInfo}
-              disabled={loading || !url.trim()}
-              sx={{
-                borderColor: currentTheme.colors.border, color: 'text.primary',
-                '&:hover': { borderColor: currentTheme.colors.primary, background: `${currentTheme.colors.primary}11` },
-              }}
-            >
-              {isPlaylist ? 'Get Playlist' : 'Get Info'}
-            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={<InfoIcon />}
+                onClick={fetchVideoInfo}
+                disabled={loading || !url.trim()}
+                sx={{
+                  borderColor: currentTheme.colors.border, color: 'text.primary',
+                  '&:hover': { borderColor: currentTheme.colors.primary, background: `${currentTheme.colors.primary}11` },
+                }}
+              >
+                {isPlaylist ? 'Get Playlist' : 'Get Info'}
+              </Button>
+              {loading && <CircularProgress size={18} sx={{ color: currentTheme.colors.primary }} />}
+            </Box>
             {!isPlaylist && (
               <Button
                 variant="contained"

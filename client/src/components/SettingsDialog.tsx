@@ -15,6 +15,7 @@ import {
   FormControl,
   InputLabel,
   TextField,
+  Alert,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -22,6 +23,10 @@ import {
   Queue as QueueIcon,
   Palette as PaletteIcon,
   Speed as SpeedIcon,
+  Cookie as CookieIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -36,6 +41,8 @@ interface SettingsDialogProps {
 interface AppSettings {
   maxConcurrentDownloads: number;
   downloadSpeedLimit: number;
+  cookieBrowser: string;
+  cookieFilePath: string;
 }
 
 const SPEED_PRESETS = [
@@ -87,12 +94,17 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   const [settings, setSettings] = useState<AppSettings>({
     maxConcurrentDownloads: 3,
     downloadSpeedLimit: 0,
+    cookieBrowser: '',
+    cookieFilePath: '',
   });
   const [speedIndex, setSpeedIndex] = useState(0);
   const [manualInput, setManualInput] = useState('');
   const [manualUnit, setManualUnit] = useState<'KB' | 'MB'>('MB');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [detectedBrowsers, setDetectedBrowsers] = useState<string[]>([]);
+  const [cookieTestStatus, setCookieTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [cookieTestMsg, setCookieTestMsg] = useState('');
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -101,6 +113,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
       setSettings({
         maxConcurrentDownloads: res.data.maxConcurrent || 3,
         downloadSpeedLimit: limit,
+        cookieBrowser: res.data.cookieBrowser || '',
+        cookieFilePath: res.data.cookieFilePath || '',
       });
       const idx = getSpeedIndex(limit);
       setSpeedIndex(idx);
@@ -119,8 +133,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
     if (open) {
       fetchSettings();
       setSaved(false);
+      setCookieTestStatus('idle');
+      axios.get(`${apiUrl}/download/browsers`).then(res => {
+        setDetectedBrowsers(res.data.browsers || []);
+      }).catch(() => setDetectedBrowsers([]));
     }
-  }, [open, fetchSettings]);
+  }, [open, fetchSettings, apiUrl]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -128,6 +146,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
       await axios.put(`${apiUrl}/download/queue/settings`, {
         maxConcurrentDownloads: settings.maxConcurrentDownloads,
         downloadSpeedLimit: settings.downloadSpeedLimit,
+        cookieBrowser: settings.cookieBrowser,
+        cookieFilePath: settings.cookieFilePath,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -149,6 +169,38 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
     if (!isNaN(num) && num > 0) {
       const bytes = unitToBytes(num, manualUnit);
       setSettings((prev) => ({ ...prev, downloadSpeedLimit: bytes }));
+    }
+  };
+
+  const BROWSER_LABELS: Record<string, string> = {
+    chrome: 'Google Chrome',
+    edge: 'Microsoft Edge',
+    firefox: 'Mozilla Firefox',
+    brave: 'Brave',
+    opera: 'Opera',
+    vivaldi: 'Vivaldi',
+  };
+
+  const CHROMIUM_BROWSERS = ['chrome', 'edge', 'brave', 'opera', 'vivaldi'];
+
+  const handleTestCookies = async () => {
+    setCookieTestStatus('testing');
+    setCookieTestMsg('');
+    try {
+      const res = await axios.post(`${apiUrl}/download/cookie-test`, {
+        cookieBrowser: settings.cookieBrowser,
+        cookieFilePath: settings.cookieFilePath,
+      });
+      if (res.data.success) {
+        setCookieTestStatus('success');
+        setCookieTestMsg(res.data.message);
+      } else {
+        setCookieTestStatus('error');
+        setCookieTestMsg(res.data.error || 'Test failed');
+      }
+    } catch (err: any) {
+      setCookieTestStatus('error');
+      setCookieTestMsg(err.response?.data?.error || err.message || 'Test failed');
     }
   };
 
@@ -386,6 +438,242 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                 </Button>
               </Box>
             </Box>
+          )}
+        </Box>
+
+        <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />
+
+        {/* Browser Cookies Section */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <CookieIcon sx={{ fontSize: 18, color: currentTheme.colors.success }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+              Browser Cookies
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', fontSize: '0.85rem' }}>
+            Pull login cookies from your browser to bypass download restrictions (e.g. YouTube 403 errors, age-restricted content).
+          </Typography>
+
+          {/* Browser selector — only detected browsers */}
+          <FormControl fullWidth size="small">
+            <InputLabel>Browser</InputLabel>
+            <Select
+              value={settings.cookieBrowser}
+              label="Browser"
+              onChange={(e) => {
+                setSettings((prev) => ({ ...prev, cookieBrowser: e.target.value, cookieFilePath: '' }));
+                setCookieTestStatus('idle');
+              }}
+            >
+              <MenuItem value="">
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>Disabled (no cookies)</Typography>
+              </MenuItem>
+              {detectedBrowsers.map((b) => (
+                <MenuItem key={b} value={b}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {BROWSER_LABELS[b] || b}
+                    </Typography>
+                    {b === 'firefox' && (
+                      <Box sx={{
+                        ml: 'auto',
+                        px: 0.75,
+                        py: 0.15,
+                        borderRadius: 0.5,
+                        background: `${currentTheme.colors.success}22`,
+                        border: `1px solid ${currentTheme.colors.success}55`,
+                      }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: currentTheme.colors.success }}>
+                          RECOMMENDED
+                        </Typography>
+                      </Box>
+                    )}
+                    {CHROMIUM_BROWSERS.includes(b) && (
+                      <Box sx={{
+                        ml: 'auto',
+                        px: 0.75,
+                        py: 0.15,
+                        borderRadius: 0.5,
+                        background: `${currentTheme.colors.warning}22`,
+                        border: `1px solid ${currentTheme.colors.warning}55`,
+                      }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: currentTheme.colors.warning }}>
+                          REQUIRES EXPORT
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Firefox success message */}
+          {settings.cookieBrowser === 'firefox' && (
+            <Alert severity="success" sx={{ mt: 1.5, borderRadius: 1, fontSize: '0.8rem', background: `${currentTheme.colors.success}11`, border: `1px solid ${currentTheme.colors.success}33` }}>
+              <strong>Firefox selected.</strong> Just make sure you're logged in to the site you want to download from. Works while the browser is open.
+            </Alert>
+          )}
+
+          {/* Chromium guided setup */}
+          {CHROMIUM_BROWSERS.includes(settings.cookieBrowser) && (
+            <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1, background: `${currentTheme.colors.background}88`, border: `1px solid ${currentTheme.colors.border}` }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, fontSize: '0.85rem' }}>
+                How to set up {BROWSER_LABELS[settings.cookieBrowser]} cookies:
+              </Typography>
+
+              {/* Step 1 */}
+              <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
+                <Box sx={{
+                  minWidth: 22, height: 22, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.15,
+                }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.65rem', color: '#fff' }}>1</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                    Install the <strong>"Get cookies.txt LOCALLY"</strong> extension:
+                  </Typography>
+                  <Button
+                    size="small"
+                    href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+                    target="_blank"
+                    rel="noopener"
+                    endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                    sx={{ fontSize: '0.75rem', textTransform: 'none', mt: 0.5, px: 0, minWidth: 0 }}
+                  >
+                    Open Chrome Web Store
+                  </Button>
+                </Box>
+              </Box>
+
+              {/* Step 2 */}
+              <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
+                <Box sx={{
+                  minWidth: 22, height: 22, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.15,
+                }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.65rem', color: '#fff' }}>2</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  Visit the site you want to download from (e.g. <strong>youtube.com</strong>) and log in.
+                </Typography>
+              </Box>
+
+              {/* Step 3 */}
+              <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
+                <Box sx={{
+                  minWidth: 22, height: 22, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.15,
+                }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.65rem', color: '#fff' }}>3</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  Click the extension icon in your toolbar, then click <strong>"Export"</strong> and save the file.
+                </Typography>
+              </Box>
+
+              {/* Step 4 */}
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'flex-start' }}>
+                <Box sx={{
+                  minWidth: 22, height: 22, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.15,
+                }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.65rem', color: '#fff' }}>4</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  Paste the saved file path below:
+                </Typography>
+              </Box>
+
+              <TextField
+                fullWidth
+                size="small"
+                value={settings.cookieFilePath}
+                onChange={(e) => {
+                  setSettings((prev) => ({ ...prev, cookieFilePath: e.target.value, cookieBrowser: '' }));
+                  setCookieTestStatus('idle');
+                }}
+                placeholder="C:\Users\You\Downloads\cookies.txt"
+                sx={{
+                  ml: 3.25,
+                  '& .MuiOutlinedInput-root': { borderRadius: 0.75, fontSize: '0.85rem' },
+                  '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Cookie file path — always visible when no browser selected or as alternative */}
+          {!settings.cookieBrowser && (
+            <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1, background: `${currentTheme.colors.background}88`, border: `1px solid ${currentTheme.colors.border}` }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', mb: 1, display: 'block' }}>
+                Or provide a cookies.txt file path (Netscape format):
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={settings.cookieFilePath}
+                onChange={(e) => {
+                  setSettings((prev) => ({ ...prev, cookieFilePath: e.target.value, cookieBrowser: '' }));
+                  setCookieTestStatus('idle');
+                }}
+                placeholder="C:\Users\You\cookies.txt"
+                sx={{
+                  '& .MuiOutlinedInput-root': { borderRadius: 0.75, fontSize: '0.85rem' },
+                  '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Test button + status */}
+          {(settings.cookieBrowser || settings.cookieFilePath) && (
+            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleTestCookies}
+                disabled={cookieTestStatus === 'testing'}
+                sx={{
+                  fontSize: '0.75rem',
+                  textTransform: 'none',
+                  borderColor: currentTheme.colors.border,
+                  color: 'text.secondary',
+                  '&:hover': { borderColor: currentTheme.colors.primary },
+                }}
+              >
+                {cookieTestStatus === 'testing' ? 'Testing...' : 'Test Cookies'}
+              </Button>
+              {cookieTestStatus === 'success' && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <CheckCircleIcon sx={{ fontSize: 16, color: currentTheme.colors.success }} />
+                  <Typography variant="caption" sx={{ color: currentTheme.colors.success, fontWeight: 600 }}>
+                    {cookieTestMsg}
+                  </Typography>
+                </Box>
+              )}
+              {cookieTestStatus === 'error' && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <ErrorIcon sx={{ fontSize: 16, color: currentTheme.colors.error || '#f44336' }} />
+                  <Typography variant="caption" sx={{ color: currentTheme.colors.error || '#f44336', fontWeight: 600, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cookieTestMsg}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* No browsers detected */}
+          {detectedBrowsers.length === 0 && (
+            <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 1, fontSize: '0.8rem', background: `${currentTheme.colors.warning}11`, border: `1px solid ${currentTheme.colors.warning}33` }}>
+              No browsers detected. You can still use a cookies.txt file path below.
+            </Alert>
           )}
         </Box>
       </DialogContent>

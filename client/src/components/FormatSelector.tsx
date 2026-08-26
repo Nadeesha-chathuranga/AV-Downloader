@@ -175,8 +175,9 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
                       textTransform: 'uppercase',
                       letterSpacing: 0.5,
                       color: 'text.secondary',
-                      background: `${currentTheme.colors.surface}cc`,
+                      background: currentTheme.colors.surface,
                       borderBottom: `1px solid ${currentTheme.colors.border}`,
+                      zIndex: 1,
                       py: 1,
                       px: 1.5,
                     }}

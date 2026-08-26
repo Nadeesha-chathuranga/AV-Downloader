@@ -1,5 +1,5 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
@@ -76,18 +76,20 @@ const processQueue = () => {
 const startDownload = (job) => {
   const { id, url, args, downloadsDir, io, info } = job;
 
-  io.emit('download-start', info);
+  io.emit('download-start', { ...info, status: 'starting' });
 
   const ytdlp = spawn('yt-dlp', args);
   ytdlp.info = info;
   activeProcesses.set(id, ytdlp);
 
-  ytdlp.stdout.on('data', (data) => {
-    const output = data.toString();
-    const progressMatch = output.match(/(\d+\.\d+)%/);
+  let stdoutBuffer = '';
+  const processLine = (output) => {
+    const progressMatch = output.match(/(\d+\.?\d*)%/);
     if (progressMatch) {
       info.progress = parseFloat(progressMatch[1]);
-      info.status = 'downloading';
+      if (info.status !== 'cancelled') {
+        info.status = 'downloading';
+      }
 
       const sizeMatch = output.match(/of\s+~?([\d.]+\s*[KMG]iB)/i);
       if (sizeMatch) info.totalSize = sizeMatch[1];
@@ -107,16 +109,24 @@ const startDownload = (job) => {
     if (filenameMatch) {
       info.filename = path.basename(filenameMatch[1]);
     }
+  };
+
+  ytdlp.stdout.on('data', (data) => {
+    stdoutBuffer += data.toString();
+    const lines = stdoutBuffer.split(/[\r\n]+/);
+    stdoutBuffer = lines.pop() || '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed) processLine(trimmed);
+    }
   });
 
   ytdlp.stderr.on('data', (data) => {
-    const error = data.toString();
-    info.error = error;
-    info.status = 'error';
-    io.emit('download-error', info);
+    info.stderr = (info.stderr || '') + data.toString();
   });
 
   ytdlp.on('close', (code) => {
+    if (stdoutBuffer.trim()) processLine(stdoutBuffer.trim());
     activeProcesses.delete(id);
     activeCount--;
     if (code === 0) {
@@ -125,12 +135,62 @@ const startDownload = (job) => {
       io.emit('download-complete', info);
     } else if (info.status !== 'cancelled') {
       info.status = 'error';
-      info.error = `Process exited with code ${code}`;
+      info.error = (info.stderr || '').trim() || `Process exited with code ${code}`;
       io.emit('download-error', info);
     }
     processQueue();
   });
 };
+
+// GET /api/download/browsers — detect installed browsers on Windows
+router.get('/browsers', (req, res) => {
+  const browsers = [];
+  const registryKeys = {
+    chrome: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe',
+    edge: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\msedge.exe',
+    firefox: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\firefox.exe',
+    brave: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\brave.exe',
+    opera: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\opera.exe',
+    vivaldi: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\vivaldi.exe',
+  };
+  for (const [name, regKey] of Object.entries(registryKeys)) {
+    try {
+      const result = execSync(`reg query "${regKey}" /ve 2>nul`, { encoding: 'utf-8', timeout: 3000 });
+      if (result.includes('REG_SZ')) browsers.push(name);
+    } catch {}
+  }
+  res.json({ browsers });
+});
+
+// POST /api/download/cookie-test — test cookie configuration
+router.post('/cookie-test', async (req, res) => {
+  const { cookieBrowser, cookieFilePath } = req.body;
+  const args = ['--flat-playlist', '--playlist-items', '1', '--print', '%(title)s', '--no-download', '--quiet'];
+  if (cookieFilePath) {
+    args.push('--cookies', cookieFilePath);
+  } else if (cookieBrowser) {
+    args.push('--cookies-from-browser', cookieBrowser);
+  } else {
+    return res.json({ success: false, error: 'No cookie source configured' });
+  }
+  args.push('https://www.youtube.com/@YouTube/videos');
+  try {
+    await new Promise((resolve, reject) => {
+      const proc = spawn('yt-dlp', args);
+      let stderr = '';
+      proc.stderr.on('data', (d) => { stderr += d.toString(); });
+      proc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(stderr.trim() || `Exit code ${code}`));
+      });
+      proc.on('error', (err) => reject(err));
+      setTimeout(() => { proc.kill(); reject(new Error('Test timed out — try again')); }, 20000);
+    });
+    res.json({ success: true, message: 'Cookies are working!' });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
 // POST /api/download
 router.post('/', async (req, res) => {
@@ -155,6 +215,13 @@ router.post('/', async (req, res) => {
     const args = [];
     args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
+
+    const config = loadConfig();
+    if (config.cookieFilePath) {
+      args.push('--cookies', config.cookieFilePath);
+    } else if (config.cookieBrowser) {
+      args.push('--cookies-from-browser', config.cookieBrowser);
+    }
 
     if (customArgs) {
       args.push(...parseCustomArgs(customArgs));
@@ -202,9 +269,8 @@ router.post('/', async (req, res) => {
     args.push('--progress');
 
     const downloadId = Date.now().toString();
-    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null, totalSize: '', speed: '', eta: '', downloadedSize: '' };
+    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null, stderr: '', totalSize: '', speed: '', eta: '', downloadedSize: '' };
 
-    const config = loadConfig();
     if (config.downloadSpeedLimit && config.downloadSpeedLimit > 0) {
       args.push('--limit-rate', `${config.downloadSpeedLimit}`);
     }
@@ -212,6 +278,7 @@ router.post('/', async (req, res) => {
 
     if (activeCount < config.maxConcurrentDownloads) {
       activeCount++;
+      io.emit('download-start', { ...info, status: 'starting' });
       startDownload({ id: downloadId, url, args, downloadsDir, io, info });
     } else {
       queue.push({ id: downloadId, url, args, downloadsDir, io, info });
@@ -251,6 +318,13 @@ router.post('/playlist', async (req, res) => {
       args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
       args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
 
+      const config = loadConfig();
+      if (config.cookieFilePath) {
+        args.push('--cookies', config.cookieFilePath);
+      } else if (config.cookieBrowser) {
+        args.push('--cookies-from-browser', config.cookieBrowser);
+      }
+
       if (audioOnly) {
         args.push('-f', 'bestaudio/best');
         args.push('--extract-audio');
@@ -282,7 +356,6 @@ router.post('/playlist', async (req, res) => {
       args.push('--no-playlist');
       args.push('--progress');
 
-      const config = loadConfig();
       if (config.downloadSpeedLimit && config.downloadSpeedLimit > 0) {
         args.push('--limit-rate', `${config.downloadSpeedLimit}`);
       }
@@ -291,7 +364,7 @@ router.post('/playlist', async (req, res) => {
       const downloadId = `${playlistId}-${index}`;
       const info = {
         id: downloadId, url, status: 'queued', progress: 0, filename: '',
-        error: null, playlistId, playlistIndex: index, playlistTotal: urls.length,
+        error: null, stderr: '', playlistId, playlistIndex: index, playlistTotal: urls.length,
         totalSize: '', speed: '', eta: '', downloadedSize: '',
       };
 
@@ -319,6 +392,11 @@ router.delete('/cancel/:id', (req, res) => {
   const proc = activeProcesses.get(id);
   if (proc) {
     proc.info.status = 'cancelled';
+    const downloadsDir = path.join(__dirname, '../../downloads');
+    if (proc.info.filename) {
+      fs.remove(path.join(downloadsDir, proc.info.filename)).catch(() => {});
+      fs.remove(path.join(downloadsDir, proc.info.filename + '.part')).catch(() => {});
+    }
     proc.kill('SIGTERM');
     io.emit('download-cancelled', { id });
     return res.json({ success: true, message: 'Download cancelled' });
@@ -341,6 +419,8 @@ router.get('/queue', (req, res) => {
   res.json({
     maxConcurrent: config.maxConcurrentDownloads,
     downloadSpeedLimit: config.downloadSpeedLimit || 0,
+    cookieBrowser: config.cookieBrowser || '',
+    cookieFilePath: config.cookieFilePath || '',
     activeCount,
     queueLength: queue.length,
     queued: queue.map((j) => ({ id: j.id, url: j.url, info: j.info })),
@@ -350,19 +430,25 @@ router.get('/queue', (req, res) => {
 
 // PUT /api/download/queue/settings
 router.put('/queue/settings', (req, res) => {
-  const { maxConcurrentDownloads, downloadSpeedLimit } = req.body;
+  const { maxConcurrentDownloads, downloadSpeedLimit, cookieBrowser, cookieFilePath } = req.body;
   if (!maxConcurrentDownloads || maxConcurrentDownloads < 1 || maxConcurrentDownloads > 10) {
     return res.status(400).json({ error: 'maxConcurrentDownloads must be between 1 and 10' });
   }
   if (downloadSpeedLimit !== undefined && (downloadSpeedLimit < 0 || downloadSpeedLimit > 104857600)) {
     return res.status(400).json({ error: 'downloadSpeedLimit must be between 0 and 104857600 (100 MB/s)' });
   }
+  const validBrowsers = ['', 'chrome', 'edge', 'firefox', 'brave', 'opera', 'vivaldi'];
+  if (cookieBrowser !== undefined && !validBrowsers.includes(cookieBrowser)) {
+    return res.status(400).json({ error: `cookieBrowser must be one of: ${validBrowsers.filter(b => b).join(', ')}` });
+  }
   const config = loadConfig();
   config.maxConcurrentDownloads = maxConcurrentDownloads;
   config.downloadSpeedLimit = downloadSpeedLimit ?? config.downloadSpeedLimit ?? 0;
+  if (cookieBrowser !== undefined) config.cookieBrowser = cookieBrowser;
+  if (cookieFilePath !== undefined) config.cookieFilePath = cookieFilePath;
   saveConfig(config);
   processQueue();
-  res.json({ success: true, maxConcurrentDownloads, downloadSpeedLimit: config.downloadSpeedLimit });
+  res.json({ success: true, maxConcurrentDownloads, downloadSpeedLimit: config.downloadSpeedLimit, cookieBrowser: config.cookieBrowser, cookieFilePath: config.cookieFilePath });
 });
 
 // GET /api/download/list

@@ -1,6 +1,27 @@
 const express = require('express');
 const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs-extra');
 const router = express.Router();
+
+const CONFIG_PATH = path.join(__dirname, '../config.json');
+
+const loadConfig = () => {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) return fs.readJsonSync(CONFIG_PATH);
+  } catch (e) {}
+  return {};
+};
+
+const getCookieArgs = () => {
+  const config = loadConfig();
+  if (config.cookieFilePath) {
+    return ['--cookies', config.cookieFilePath];
+  } else if (config.cookieBrowser) {
+    return ['--cookies-from-browser', config.cookieBrowser];
+  }
+  return [];
+};
 
 // GET /api/info?url=<video_url> - Get video information
 router.get('/', async (req, res) => {
@@ -20,6 +41,7 @@ router.get('/', async (req, res) => {
     const args = [
       '--dump-json',
       '--no-playlist',
+      ...getCookieArgs(),
       url
     ];
 
@@ -104,6 +126,7 @@ router.get('/playlist', async (req, res) => {
     const args = [
       '--flat-playlist',
       '--dump-json',
+      ...getCookieArgs(),
       url
     ];
 

@@ -6,7 +6,7 @@
 
 .app-layout {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 560px;
   gap: 24px;
   max-width: 1600px;
   margin: 0 auto;
@@ -73,9 +73,17 @@
   animation: downloadPulse 1.5s ease-in-out infinite;
 }
 
+@media (max-width: 1400px) {
+  .app-layout {
+    grid-template-columns: 1fr 480px;
+    gap: 20px;
+    padding: 20px 24px 48px;
+  }
+}
+
 @media (max-width: 1100px) {
   .app-layout {
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr 360px;
     padding: 20px 20px 48px;
     gap: 20px;
   }
