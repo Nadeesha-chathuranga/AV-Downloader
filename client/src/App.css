@@ -49,51 +49,6 @@
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, var(--primary-color, #00f0ff), var(--secondary-color, #ff2d78));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.section-title {
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 16px;
-}
-
-.animate-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.glow-line {
-  position: relative;
-}
-
-.glow-line::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--primary-color, #00f0ff), transparent);
-  opacity: 0.4;
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 .progress-glow {
   position: relative;
 }
@@ -116,16 +71,6 @@
 
 .downloading-indicator {
   animation: downloadPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideRight {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 @media (max-width: 1100px) {

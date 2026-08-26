@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
+import { apiUrl } from '../config';
 
 interface DownloadedFile {
   name: string;
@@ -36,11 +37,6 @@ const DownloadHistory: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { currentTheme } = useAppTheme();
-
-  const apiUrl =
-    process.env.NODE_ENV === 'production'
-      ? '/api'
-      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);

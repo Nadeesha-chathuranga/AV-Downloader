@@ -8,7 +8,7 @@ const DEFAULTS_FILE = path.join(__dirname, '../templates/defaults.json');
 
 const DANGEROUS_FLAGS = [
   '--rm', '--exec', '--run', '--power-shell',
-  '--batch-file', '-x', '--delete',
+  '--batch-file', '--delete',
 ];
 
 const validateArgs = (args) => {

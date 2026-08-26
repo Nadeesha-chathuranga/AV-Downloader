@@ -1,10 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs-extra');
-const { spawn } = require('child_process');
 const http = require('http');
 const socketIo = require('socket.io');
 
@@ -21,8 +21,11 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
-app.use(morgan('combined'));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? false : [process.env.CLIENT_ORIGIN || 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+}));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

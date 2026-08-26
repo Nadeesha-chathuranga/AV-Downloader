@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import SettingsDialog from './SettingsDialog';
+import { apiUrl } from '../config';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const Header: React.FC = () => {
@@ -26,10 +27,6 @@ const Header: React.FC = () => {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const apiUrl =
-          process.env.NODE_ENV === 'production'
-            ? '/api'
-            : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
         await axios.get(`${apiUrl}/formats/quality-presets`);
         setBackendStatus('connected');
       } catch (error) {
@@ -88,7 +85,7 @@ const Header: React.FC = () => {
               }}
             >
               <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="#000">S</text>
+                <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="currentColor">S</text>
               </svg>
             </Box>
             <Box>

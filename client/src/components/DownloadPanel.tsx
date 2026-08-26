@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useSocket, DownloadInfo } from '../contexts/SocketContext';
+import { apiUrl } from '../config';
 import { useAppTheme } from '../theme/ThemeContext';
 
 interface QueueState {
@@ -42,11 +43,6 @@ const DownloadPanel: React.FC = () => {
   const [queueState, setQueueState] = useState<QueueState | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [queueExpanded, setQueueExpanded] = useState(true);
-
-  const apiUrl =
-    process.env.NODE_ENV === 'production'
-      ? '/api'
-      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -124,7 +120,7 @@ const DownloadPanel: React.FC = () => {
             }}
           >
             <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="#000">S</text>
+              <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="currentColor">S</text>
             </svg>
           </Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>

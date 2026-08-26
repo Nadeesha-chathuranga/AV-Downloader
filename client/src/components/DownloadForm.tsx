@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
+import { apiUrl } from '../config';
 import PlaylistPanel from './PlaylistPanel';
 import FormatSelector, { FormatEntry } from './FormatSelector';
 
@@ -176,11 +177,6 @@ const DownloadForm: React.FC = () => {
     audio: QualityPreset[];
   }>({ video: [], audio: [] });
   const { currentTheme } = useAppTheme();
-
-  const apiUrl =
-    process.env.NODE_ENV === 'production'
-      ? '/api'
-      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const fetchQualityPresets = useCallback(async () => {
     try {

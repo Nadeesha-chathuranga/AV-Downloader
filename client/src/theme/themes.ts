@@ -14,7 +14,6 @@ export interface AppTheme {
     success: string;
     warning: string;
     info: string;
-    glow: string;
   };
 }
 
@@ -35,7 +34,6 @@ export const themes: AppTheme[] = [
       success: '#00ff88',
       warning: '#ffb800',
       info: '#00c8ff',
-      glow: 'rgba(0, 240, 255, 0.15)',
     },
   },
   {
@@ -54,7 +52,6 @@ export const themes: AppTheme[] = [
       success: '#00ff88',
       warning: '#f0c000',
       info: '#58a6ff',
-      glow: 'rgba(0, 255, 136, 0.12)',
     },
   },
   {
@@ -73,7 +70,6 @@ export const themes: AppTheme[] = [
       success: '#44ff88',
       warning: '#ffd700',
       info: '#ff8855',
-      glow: 'rgba(255, 107, 53, 0.15)',
     },
   },
   {
@@ -92,7 +88,6 @@ export const themes: AppTheme[] = [
       success: '#44ddaa',
       warning: '#ffcc44',
       info: '#4fc3f7',
-      glow: 'rgba(79, 195, 247, 0.12)',
     },
   },
   {
@@ -111,7 +106,6 @@ export const themes: AppTheme[] = [
       success: '#84cc16',
       warning: '#eab308',
       info: '#a78bfa',
-      glow: 'rgba(168, 85, 247, 0.15)',
     },
   },
 ];

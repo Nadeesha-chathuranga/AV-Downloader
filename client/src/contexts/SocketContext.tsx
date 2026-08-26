@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { apiUrl } from '../config';
 
 export interface DownloadInfo {
   id: string;
@@ -36,8 +37,6 @@ interface SocketContextType {
   downloads: DownloadInfo[];
   playlists: Record<string, PlaylistInfo>;
   queue: QueueState;
-  addDownload: (download: DownloadInfo) => void;
-  updateDownload: (id: string, updates: Partial<DownloadInfo>) => void;
   cancelDownload: (id: string) => void;
 }
 
@@ -60,11 +59,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [downloads, setDownloads] = useState<DownloadInfo[]>([]);
   const [playlists, setPlaylists] = useState<Record<string, PlaylistInfo>>({});
   const [queue] = useState<QueueState>({ maxConcurrent: 3, activeCount: 0, queueLength: 0 });
-
-  const apiUrl =
-    process.env.NODE_ENV === 'production'
-      ? '/api'
-      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const cancelDownload = useCallback(async (id: string) => {
     try {
@@ -168,16 +162,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const addDownload = (download: DownloadInfo) => {
-    setDownloads((prev) => [...prev, download]);
-  };
-
-  const updateDownload = (id: string, updates: Partial<DownloadInfo>) => {
-    setDownloads((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
-  };
-
   return (
-    <SocketContext.Provider value={{ socket, downloads, playlists, queue, addDownload, updateDownload, cancelDownload }}>
+    <SocketContext.Provider value={{ socket, downloads, playlists, queue, cancelDownload }}>
       {children}
     </SocketContext.Provider>
   );

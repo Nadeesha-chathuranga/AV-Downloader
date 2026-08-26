@@ -26,6 +26,7 @@ import {
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
 import { themes } from '../theme/themes';
+import { apiUrl } from '../config';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -92,11 +93,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   const [manualUnit, setManualUnit] = useState<'KB' | 'MB'>('MB');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  const apiUrl =
-    process.env.NODE_ENV === 'production'
-      ? '/api'
-      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -272,7 +268,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary' }}>
-            Per-download speed limit: <strong>{speedIndex === MANUAL_INDEX && settings.downloadSpeedLimit > 0 ? formatSpeed(settings.downloadSpeedLimit) : formatSpeed(settings.downloadSpeedLimit)}</strong>
+            Per-download speed limit: <strong>{formatSpeed(settings.downloadSpeedLimit)}</strong>
           </Typography>
           <Slider
             value={speedIndex}

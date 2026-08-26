@@ -79,6 +79,7 @@ const startDownload = (job) => {
   io.emit('download-start', info);
 
   const ytdlp = spawn('yt-dlp', args);
+  ytdlp.info = info;
   activeProcesses.set(id, ytdlp);
 
   ytdlp.stdout.on('data', (data) => {
@@ -129,28 +130,6 @@ const startDownload = (job) => {
     }
     processQueue();
   });
-};
-
-const buildArgs = (options) => {
-  const { customArgs, audioOnly, format, quality } = options;
-  const args = [];
-  args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-  args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
-
-  if (customArgs) {
-    args.push(...parseCustomArgs(customArgs));
-  } else if (audioOnly) {
-    args.push('-f', 'bestaudio/best');
-    args.push('--extract-audio');
-    args.push('--audio-format', format || 'mp3');
-  } else {
-    if (quality && quality !== 'best') {
-      args.push('-f', `best[height<=${quality}]/best`);
-    } else {
-      args.push('-f', 'b');
-    }
-  }
-  return args;
 };
 
 // POST /api/download
@@ -339,12 +318,9 @@ router.delete('/cancel/:id', (req, res) => {
 
   const proc = activeProcesses.get(id);
   if (proc) {
+    proc.info.status = 'cancelled';
     proc.kill('SIGTERM');
-    activeProcesses.delete(id);
-    activeCount--;
     io.emit('download-cancelled', { id });
-    io.emit('download-error', { id, status: 'error', error: 'Cancelled by user', progress: 0, filename: '', url: '' });
-    processQueue();
     return res.json({ success: true, message: 'Download cancelled' });
   }
 
