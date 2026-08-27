@@ -591,21 +591,22 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                 </Typography>
               </Box>
 
-              <TextField
-                fullWidth
-                size="small"
-                value={settings.cookieFilePath}
-                onChange={(e) => {
-                  setSettings((prev) => ({ ...prev, cookieFilePath: e.target.value, cookieBrowser: '' }));
-                  setCookieTestStatus('idle');
-                }}
-                placeholder="C:\Users\You\Downloads\cookies.txt"
-                sx={{
-                  ml: 3.25,
-                  '& .MuiOutlinedInput-root': { borderRadius: 0.75, fontSize: '0.85rem' },
-                  '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
-                }}
-              />
+              <Box sx={{ ml: 3.25 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={settings.cookieFilePath}
+                  onChange={(e) => {
+                    setSettings((prev) => ({ ...prev, cookieFilePath: e.target.value, cookieBrowser: '' }));
+                    setCookieTestStatus('idle');
+                  }}
+                  placeholder="C:\Users\You\Downloads\cookies.txt"
+                  sx={{
+                    '& .MuiOutlinedInput-root': { borderRadius: 0.75, fontSize: '0.85rem' },
+                    '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+                  }}
+                />
+              </Box>
             </Box>
           )}
 
@@ -634,34 +635,44 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
 
           {/* Test button + status */}
           {(settings.cookieBrowser || settings.cookieFilePath) && (
-            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Button
-                size="small"
-                variant="outlined"
+                variant="contained"
+                color="primary"
+                startIcon={cookieTestStatus === 'testing' ? undefined : <CheckCircleIcon sx={{ fontSize: 16 }} />}
                 onClick={handleTestCookies}
                 disabled={cookieTestStatus === 'testing'}
                 sx={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
                   textTransform: 'none',
-                  borderColor: currentTheme.colors.border,
-                  color: 'text.secondary',
-                  '&:hover': { borderColor: currentTheme.colors.primary },
+                  py: 0.9,
+                  letterSpacing: 0.2,
+                  '&:hover': {
+                    boxShadow: `0 6px 22px ${currentTheme.colors.primary}55`,
+                  },
+                  '&.Mui-disabled': {
+                    background: `${currentTheme.colors.surfaceAlt}`,
+                    color: 'text.secondary',
+                  },
                 }}
               >
-                {cookieTestStatus === 'testing' ? 'Testing...' : 'Test Cookies'}
+                {cookieTestStatus === 'testing' ? 'Testing cookies...' : 'Test Cookies'}
               </Button>
-              {cookieTestStatus === 'success' && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <CheckCircleIcon sx={{ fontSize: 16, color: currentTheme.colors.success }} />
-                  <Typography variant="caption" sx={{ color: currentTheme.colors.success, fontWeight: 600 }}>
-                    {cookieTestMsg}
-                  </Typography>
-                </Box>
-              )}
-              {cookieTestStatus === 'error' && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <ErrorIcon sx={{ fontSize: 16, color: currentTheme.colors.error || '#f44336' }} />
-                  <Typography variant="caption" sx={{ color: currentTheme.colors.error || '#f44336', fontWeight: 600, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {(cookieTestStatus === 'success' || cookieTestStatus === 'error') && (
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75 }}>
+                  {cookieTestStatus === 'success' ? (
+                    <CheckCircleIcon sx={{ fontSize: 16, mt: 0.15, flexShrink: 0, color: currentTheme.colors.success }} />
+                  ) : (
+                    <ErrorIcon sx={{ fontSize: 16, mt: 0.15, flexShrink: 0, color: currentTheme.colors.error || '#f44336' }} />
+                  )}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: cookieTestStatus === 'success' ? currentTheme.colors.success : currentTheme.colors.error || '#f44336',
+                      fontWeight: 600,
+                    }}
+                  >
                     {cookieTestMsg}
                   </Typography>
                 </Box>
