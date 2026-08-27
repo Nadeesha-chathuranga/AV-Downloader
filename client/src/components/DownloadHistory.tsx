@@ -6,7 +6,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Box,
   Alert,
@@ -20,7 +19,6 @@ import {
   InsertDriveFile as FileIcon,
   FolderOpen as FolderIcon,
 } from '@mui/icons-material';
-import { Button, ButtonGroup } from '@mui/material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
 import { apiUrl } from '../config';
@@ -38,10 +36,6 @@ const DownloadHistory: React.FC = () => {
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'video' | 'audio'>('video');
   const { currentTheme } = useAppTheme();
-
-  const videos = files.filter((f) => getFileType(f.name) === 'video');
-  const audios = files.filter((f) => getFileType(f.name) === 'audio');
-  const visibleFiles = tab === 'video' ? videos : audios;
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -94,6 +88,10 @@ const DownloadHistory: React.FC = () => {
     if (['mp3', 'm4a', 'wav', 'flac', 'ogg', 'aac'].includes(extension || '')) return 'audio';
     return 'unknown';
   };
+
+  const videos = files.filter((f) => getFileType(f.name) === 'video');
+  const audios = files.filter((f) => getFileType(f.name) === 'audio');
+  const visibleFiles = tab === 'video' ? videos : audios;
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -150,52 +148,79 @@ const DownloadHistory: React.FC = () => {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ButtonGroup
-              variant="outlined"
-              size="small"
+            <Box
               sx={{
-                borderColor: currentTheme.colors.border,
-                borderRadius: 0.75,
-                '& .MuiButtonGroup-grouped': { borderColor: currentTheme.colors.border },
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: `${currentTheme.colors.surfaceAlt}`,
+                border: `1px solid ${currentTheme.colors.border}`,
+                borderRadius: 1,
+                p: 0.25,
+                overflow: 'hidden',
               }}
             >
-              <Button
-                startIcon={<MovieIcon sx={{ fontSize: 15 }} />}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 4,
+                  bottom: 4,
+                  width: 'calc(50% - 4px)',
+                  left: tab === 'video' ? 4 : '50%',
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}cc, ${currentTheme.colors.secondary}cc)`,
+                  boxShadow: `0 2px 10px ${currentTheme.colors.primary}22`,
+                  borderRadius: 0.75,
+                  transition: 'left 0.25s ease',
+                  zIndex: 0,
+                }}
+              />
+              <Box
                 onClick={() => setTab('video')}
                 sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  background: tab === 'video' ? currentTheme.colors.primary : 'transparent',
-                  borderColor: currentTheme.colors.border,
-                  color: tab === 'video' ? '#fff' : 'text.secondary',
-                  '&:hover': {
-                    borderColor: currentTheme.colors.primary,
-                    background: tab === 'video' ? currentTheme.colors.primary : `${currentTheme.colors.primary}22`,
-                  },
+                  position: 'relative',
+                  zIndex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.75,
+                  minWidth: 104,
+                  py: 0.75,
+                  borderRadius: 0.75,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  color: tab === 'video' ? '#0a0a0f' : 'text.secondary',
+                  transition: 'color 0.2s ease',
                 }}
               >
-                Video ({videos.length})
-              </Button>
-              <Button
-                startIcon={<AudioFileIcon sx={{ fontSize: 15 }} />}
+                <MovieIcon sx={{ fontSize: 15 }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
+                  Video ({videos.length})
+                </Typography>
+              </Box>
+              <Box
                 onClick={() => setTab('audio')}
                 sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  background: tab === 'audio' ? currentTheme.colors.secondary : 'transparent',
-                  borderColor: currentTheme.colors.border,
-                  color: tab === 'audio' ? '#fff' : 'text.secondary',
-                  '&:hover': {
-                    borderColor: currentTheme.colors.secondary,
-                    background: tab === 'audio' ? currentTheme.colors.secondary : `${currentTheme.colors.secondary}22`,
-                  },
+                  position: 'relative',
+                  zIndex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.75,
+                  minWidth: 104,
+                  py: 0.75,
+                  borderRadius: 0.75,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  color: tab === 'audio' ? '#0a0a0f' : 'text.secondary',
+                  transition: 'color 0.2s ease',
                 }}
               >
-                Audio ({audios.length})
-              </Button>
-            </ButtonGroup>
+                <AudioFileIcon sx={{ fontSize: 15 }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
+                  Audio ({audios.length})
+                </Typography>
+              </Box>
+            </Box>
             <Tooltip title="Refresh">
               <IconButton
                 onClick={fetchFiles}
@@ -292,7 +317,7 @@ const DownloadHistory: React.FC = () => {
                       </Box>
                     }
                   />
-                  <ListItemSecondaryAction>
+                  <Box sx={{ flexShrink: 0 }}>
                     <Tooltip title="Delete">
                       <IconButton
                         edge="end"
@@ -306,7 +331,7 @@ const DownloadHistory: React.FC = () => {
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  </ListItemSecondaryAction>
+                  </Box>
                 </ListItem>
               );
             })}

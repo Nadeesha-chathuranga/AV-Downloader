@@ -3,6 +3,7 @@ const { spawn, exec, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
+const state = require('../state');
 
 const DANGEROUS_FLAGS = [
   '--rm', '--exec', '--run', '--power-shell',
@@ -62,7 +63,68 @@ const validateCustomArgs = (argString) => {
 // --- Queue State ---
 const activeProcesses = new Map();   // downloadId -> ChildProcess
 const queue = [];                     // { id, url, args, downloadsDir, io, info }
+const resumable = [];                 // failed/interrupted jobs that can be resumed
 let activeCount = 0;
+
+// Persist queue + active + resumable jobs to disk so they survive a server restart.
+const saveState = () => {
+  try {
+    const activeJobs = [];
+    for (const proc of activeProcesses.values()) {
+      activeJobs.push({ ...proc.job, startedAt: proc.startedAt });
+    }
+    state.persist(queue, activeJobs, resumable);
+  } catch (e) {
+    console.error('[STATE] Failed to persist state:', e.message);
+  }
+};
+
+const removeFromResumable = (id) => {
+  const idx = resumable.findIndex((j) => j.id === id);
+  if (idx !== -1) {
+    resumable.splice(idx, 1);
+    return true;
+  }
+  return false;
+};
+
+// Rehydrate on server boot: requeue pending jobs and resume interrupted downloads.
+const rehydrate = (io) => {
+  const { queued, active, resumable: persistedResumable } = state.load();
+  const restored = [];
+
+  queued.forEach((job) => {
+    queue.push({ ...job, io });
+    restored.push({ type: 'queued', id: job.id, url: job.url, playlistId: job.playlistId, filename: job.filename });
+  });
+
+  active.forEach((job) => {
+    const info = {
+      id: job.id, url: job.url, status: 'resuming', progress: 0, filename: job.filename || '',
+      error: null, stderr: '', playlistId: job.playlistId, playlistIndex: job.playlistIndex,
+      playlistTotal: job.playlistTotal, totalSize: '', speed: '', eta: '', downloadedSize: '',
+    };
+    restored.push({ type: 'active', id: job.id, url: job.url, playlistId: job.playlistId, filename: job.filename });
+    const fullJob = { id: job.id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, io, info, startedAt: job.startedAt };
+    if (activeCount < loadConfig().maxConcurrentDownloads) {
+      activeCount++;
+      startDownload(fullJob);
+    } else {
+      queue.push(fullJob);
+    }
+  });
+
+  // Failed/interrupted jobs are re-exposed to the UI (with Resume buttons) but not auto-restarted.
+  persistedResumable.forEach((job) => {
+    resumable.push({ ...job, io });
+    restored.push({ type: 'resumable', id: job.id, url: job.url, playlistId: job.playlistId, filename: job.filename, status: job.status || 'failed' });
+  });
+
+  if (queued.length || active.length || persistedResumable.length) {
+    console.log(`[STATE] Restored ${queued.length} queued + ${active.length} active + ${persistedResumable.length} resumable on boot`);
+  }
+  return restored;
+};
 
 const processQueue = () => {
   const config = loadConfig();
@@ -75,12 +137,16 @@ const processQueue = () => {
 
 const startDownload = (job) => {
   const { id, url, args, downloadsDir, io, info } = job;
+  job.startedAt = job.startedAt || Date.now();
 
   io.emit('download-start', { ...info, status: 'starting' });
 
   const ytdlp = spawn('yt-dlp', args);
   ytdlp.info = info;
+  ytdlp.job = job;
+  ytdlp.startedAt = job.startedAt;
   activeProcesses.set(id, ytdlp);
+  saveState();
 
   let stdoutBuffer = '';
   let lastLoggedPercent = -1;
@@ -141,12 +207,22 @@ const startDownload = (job) => {
     if (code === 0) {
       info.status = 'completed';
       info.progress = 100;
+      removeFromResumable(id);
       io.emit('download-complete', info);
     } else if (info.status !== 'cancelled') {
       info.status = 'error';
       info.error = (info.stderr || '').trim() || `Process exited with code ${code}`;
+      // Keep the job so the user can resume it from its .part later.
+      resumable.push({
+        ...ytdlp.job,
+        status: 'failed',
+        filename: info.filename || '',
+      });
       io.emit('download-error', info);
+    } else {
+      removeFromResumable(id);
     }
+    saveState();
     processQueue();
   });
 };
@@ -297,6 +373,7 @@ router.post('/', async (req, res) => {
       startDownload({ id: downloadId, url, args, downloadsDir, io, info });
     } else {
       queue.push({ id: downloadId, url, args, downloadsDir, io, info });
+      saveState();
     }
 
     res.json({ success: true, downloadId, queued: info.status === 'queued', message: 'Download started' });
@@ -388,8 +465,10 @@ router.post('/playlist', async (req, res) => {
         startDownload({ id: downloadId, url, args, downloadsDir, io, info });
       } else {
         queue.push({ id: downloadId, url, args, downloadsDir, io, info });
+        saveState();
       }
     });
+    saveState();
 
     res.json({ success: true, playlistId, total: urls.length, message: `Playlist download started: ${urls.length} videos queued` });
 
@@ -421,6 +500,8 @@ router.delete('/cancel/:id', (req, res) => {
       try { proc.kill('SIGTERM'); } catch {}
     }
     io.emit('download-cancelled', { id });
+    removeFromResumable(id);
+    saveState();
     return res.json({ success: true, message: 'Download cancelled' });
   }
 
@@ -430,7 +511,18 @@ router.delete('/cancel/:id', (req, res) => {
     console.log(`[CANCEL] Removing queued job ${id} (url: ${job.url})`);
     io.emit('download-cancelled', { id });
     io.emit('download-error', { id: job.id, status: 'error', error: 'Cancelled by user', progress: 0, filename: '', url: job.url });
+    removeFromResumable(id);
+    saveState();
     return res.json({ success: true, message: 'Download removed from queue' });
+  }
+
+  const rIndex = resumable.findIndex((j) => j.id === id);
+  if (rIndex !== -1) {
+    const job = resumable.splice(rIndex, 1)[0];
+    console.log(`[CANCEL] Removing resumable job ${id} (url: ${job.url})`);
+    io.emit('download-cancelled', { id });
+    saveState();
+    return res.json({ success: true, message: 'Download removed' });
   }
 
   console.warn(`[CANCEL] Download ${id} not found (already finished or invalid id)`);
@@ -449,7 +541,53 @@ router.get('/queue', (req, res) => {
     queueLength: queue.length,
     queued: queue.map((j) => ({ id: j.id, url: j.url, info: j.info })),
     active: Array.from(activeProcesses.keys()),
+    resumable: resumable.map((j) => ({ id: j.id, url: j.url, filename: j.filename, status: j.status, playlistId: j.playlistId })),
   });
+});
+
+// POST /api/download/resume — re-issue a failed/interrupted download from its .part file
+router.post('/resume', (req, res) => {
+  const { id } = req.body || {};
+  const io = req.app.get('socketio');
+  if (!id) return res.status(400).json({ error: 'id is required' });
+
+  const rIndex = resumable.findIndex((j) => j.id === id);
+  if (rIndex === -1) {
+    console.warn(`[RESUME] ${id} not found in resumable`);
+    return res.status(404).json({ error: 'Download not found or cannot be resumed' });
+  }
+
+  const job = resumable.splice(rIndex, 1)[0];
+  console.log(`[RESUME] Re-issuing ${id} (url: ${job.url})`);
+
+  // If a process for this id is somehow still running, kill it before re-issuing.
+  const running = activeProcesses.get(id);
+  if (running) {
+    try {
+      running.kill('SIGTERM');
+      activeProcesses.delete(id);
+      activeCount = Math.max(0, activeCount - 1);
+    } catch (e) { /* ignore */ }
+  }
+
+  const info = {
+    id, url: job.url, status: 'resuming', progress: 0, filename: job.filename || '',
+    error: null, stderr: '', playlistId: job.playlistId, playlistIndex: job.playlistIndex,
+    playlistTotal: job.playlistTotal, totalSize: '', speed: '', eta: '', downloadedSize: '',
+  };
+
+  const config = loadConfig();
+  let queued = false;
+  if (activeCount < config.maxConcurrentDownloads) {
+    activeCount++;
+    startDownload({ id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, io, info });
+  } else {
+    queued = true;
+    queue.push({ id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, io, info });
+  }
+
+  saveState();
+  res.json({ success: true, downloadId: id, queued, message: queued ? 'Download queued for resume' : 'Download resumed' });
 });
 
 // PUT /api/download/queue/settings
@@ -508,5 +646,7 @@ router.delete('/:filename', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete file' });
   }
 });
+
+router.rehydrate = rehydrate;
 
 module.exports = router;

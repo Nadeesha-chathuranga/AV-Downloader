@@ -28,6 +28,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Queue as QueueIcon,
+  RestartAlt as ResumeIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useSocket, DownloadInfo } from '../contexts/SocketContext';
@@ -43,7 +44,7 @@ interface QueueState {
 }
 
 const DownloadPanel: React.FC = () => {
-  const { downloads, playlists, cancelDownload } = useSocket();
+  const { downloads, playlists, cancelDownload, resumeDownload } = useSocket();
   const { currentTheme } = useAppTheme();
   const [queueState, setQueueState] = useState<QueueState | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -71,7 +72,7 @@ const DownloadPanel: React.FC = () => {
   };
 
   const activeDownloads = downloads.filter(
-    (d) => d.status === 'starting' || d.status === 'downloading'
+    (d) => d.status === 'starting' || d.status === 'downloading' || d.status === 'resuming'
   );
   const failedDownloads = downloads.filter((d) => d.status === 'error');
   const queuedCount = queueState?.queueLength ?? 0;
@@ -223,20 +224,54 @@ const DownloadPanel: React.FC = () => {
                 <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1, minWidth: 0 }} noWrap>
                   {download.filename || 'Preparing...'}
                 </Typography>
+                {download.status === 'resuming' && (
+                  <>
+                    <Tooltip title="Resume download">
+                      <IconButton
+                        onClick={() => resumeDownload(download.id)}
+                        sx={{
+                          p: 1,
+                          width: 34,
+                          height: 34,
+                          color: currentTheme.colors.success,
+                          '&:hover': { background: `${currentTheme.colors.success}22` },
+                        }}
+                      >
+                        <ResumeIcon sx={{ fontSize: 20 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Dismiss">
+                    <IconButton
+                      onClick={() => setCancelTarget({ id: download.id, name: download.filename || 'this download' })}
+                      sx={{
+                        p: 1,
+                        width: 34,
+                        height: 34,
+                        color: currentTheme.colors.error,
+                        '&:hover': { background: `${currentTheme.colors.error}22` },
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                    </Tooltip>
+                  </>
+                )}
+                {download.status !== 'resuming' && (
                 <Tooltip title="Cancel">
                   <IconButton
-                    size="small"
                     onClick={() => setCancelTarget({ id: download.id, name: download.filename || 'this download' })}
                     sx={{
-                      width: 24,
-                      height: 24,
+                      p: 1,
+                      width: 34,
+                      height: 34,
                       color: currentTheme.colors.error,
                       '&:hover': { background: `${currentTheme.colors.error}22` },
                     }}
                   >
-                    <CloseIcon sx={{ fontSize: 14 }} />
+                    <CloseIcon sx={{ fontSize: 20 }} />
                   </IconButton>
                 </Tooltip>
+                )}
               </Box>
 
               <Box sx={{ mb: 1.5 }}>
@@ -493,19 +528,33 @@ const DownloadPanel: React.FC = () => {
                         {d.error || 'Unknown error'}
                       </Typography>
                     </Box>
+                    <Tooltip title="Resume download">
+                      <IconButton
+                        onClick={() => resumeDownload(d.id)}
+                        sx={{
+                          p: 0.75,
+                          width: 30,
+                          height: 30,
+                          color: currentTheme.colors.success,
+                          '&:hover': { background: `${currentTheme.colors.success}22` },
+                        }}
+                      >
+                        <ResumeIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Dismiss">
                       <IconButton
-                        size="small"
                         onClick={() => cancelDownload(d.id)}
                         sx={{
-                          width: 20,
-                          height: 20,
+                          p: 0.5,
+                          width: 26,
+                          height: 26,
                           color: 'text.secondary',
                           opacity: 0.5,
                           '&:hover': { opacity: 1, background: `${currentTheme.colors.error}22` },
                         }}
                       >
-                        <CloseIcon sx={{ fontSize: 12 }} />
+                        <CloseIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
                   </Box>
