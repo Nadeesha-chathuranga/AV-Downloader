@@ -83,6 +83,7 @@ const startDownload = (job) => {
   activeProcesses.set(id, ytdlp);
 
   let stdoutBuffer = '';
+  let lastLoggedPercent = -1;
   const processLine = (output) => {
     const progressMatch = output.match(/(\d+\.?\d*)%/);
     if (progressMatch) {
@@ -104,6 +105,14 @@ const startDownload = (job) => {
       if (downloadedMatch) info.downloadedSize = downloadedMatch[1];
 
       io.emit('download-progress', { ...info });
+
+      const wholePercent = Math.floor(info.progress);
+      if (wholePercent !== lastLoggedPercent) {
+        lastLoggedPercent = wholePercent;
+        console.log(
+          `[DOWNLOAD] ${info.filename || 'downloading...'} | ${info.progress.toFixed(1)}% | ${info.downloadedSize || '?'} / ${info.totalSize || '?'} | ${info.speed || '?'} | ETA ${info.eta || '?'}`
+        );
+      }
     }
     const filenameMatch = output.match(/\[download\] Destination: (.+)/);
     if (filenameMatch) {
