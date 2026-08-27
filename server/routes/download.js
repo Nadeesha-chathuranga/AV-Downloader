@@ -1,5 +1,5 @@
 const express = require('express');
-const { spawn, execSync } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
@@ -388,16 +388,23 @@ router.post('/playlist', async (req, res) => {
 router.delete('/cancel/:id', (req, res) => {
   const { id } = req.params;
   const io = req.app.get('socketio');
+  console.log(`[CANCEL] Cancel request received for download: ${id}`);
 
   const proc = activeProcesses.get(id);
   if (proc) {
+    console.log(`[CANCEL] Killing active process ${id} (pid: ${proc.pid}, filename: ${proc.info.filename || 'unknown'})`);
     proc.info.status = 'cancelled';
     const downloadsDir = path.join(__dirname, '../../downloads');
     if (proc.info.filename) {
       fs.remove(path.join(downloadsDir, proc.info.filename)).catch(() => {});
       fs.remove(path.join(downloadsDir, proc.info.filename + '.part')).catch(() => {});
     }
-    proc.kill('SIGTERM');
+    // Kill the whole process tree (yt-dlp + any orphaned ffmpeg helpers it spawned)
+    if (process.platform === 'win32') {
+      exec(`taskkill /pid ${proc.pid} /T /F`, () => {});
+    } else {
+      try { proc.kill('SIGTERM'); } catch {}
+    }
     io.emit('download-cancelled', { id });
     return res.json({ success: true, message: 'Download cancelled' });
   }
@@ -405,11 +412,13 @@ router.delete('/cancel/:id', (req, res) => {
   const qIndex = queue.findIndex((j) => j.id === id);
   if (qIndex !== -1) {
     const job = queue.splice(qIndex, 1)[0];
+    console.log(`[CANCEL] Removing queued job ${id} (url: ${job.url})`);
     io.emit('download-cancelled', { id });
     io.emit('download-error', { id: job.id, status: 'error', error: 'Cancelled by user', progress: 0, filename: '', url: job.url });
     return res.json({ success: true, message: 'Download removed from queue' });
   }
 
+  console.warn(`[CANCEL] Download ${id} not found (already finished or invalid id)`);
   res.status(404).json({ error: 'Download not found' });
 });
 
