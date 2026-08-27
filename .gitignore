@@ -79,6 +79,7 @@ pids
 *.pid.lock
 server/state.json
 server/state.json.tmp
+server/config.json
 
 # Debug files
 .node_repl_history
