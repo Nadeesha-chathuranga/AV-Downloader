@@ -1,7 +1,6 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const router = express.Router();
-const { getCookieArgs } = require('../ytdlpArgs');
 
 // GET /api/formats?url=<video_url> - Get available formats for a video
 router.get('/', async (req, res) => {
@@ -20,7 +19,6 @@ router.get('/', async (req, res) => {
     const args = [
       '--dump-json',
       '--no-playlist',
-      ...getCookieArgs(),
       url
     ];
 
@@ -40,9 +38,7 @@ router.get('/', async (req, res) => {
       if (code === 0) {
         try {
           const info = JSON.parse(output);
-          const formats = (info.formats || [])
-            .filter((f) => (f.vcodec && f.vcodec !== 'none') || (f.acodec && f.acodec !== 'none'))
-            .map(f => {
+          const formats = (info.formats || []).map(f => {
             const hasVideo = f.vcodec && f.vcodec !== 'none';
             const hasAudio = f.acodec && f.acodec !== 'none';
             let type = 'unknown';
