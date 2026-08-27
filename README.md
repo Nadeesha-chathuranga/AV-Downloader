@@ -1,169 +1,121 @@
-# Seal Web App — Windows Setup
+# Seal Web Downloader
 
-One-click installer and launcher for [Seal Web App](https://github.com/Nadeesha-chathuranga/Seal-Web-App) on Windows.
+A web-based video/audio downloader powered by yt-dlp and ffmpeg. Download media from thousands of sites with a modern, themeable interface.
 
-Seal Web App is a web-based video downloader powered by yt-dlp and ffmpeg. This tool automates the entire setup process so you can start downloading videos in seconds.
+---
+
+## Tech Stack
+
+| Layer | Tools |
+|---|---|
+| Backend | Express 4, Socket.io, yt-dlp, ffmpeg |
+| Frontend | React 19, Vite 6, MUI 7, TypeScript 5 |
+| Themes | 5 neon themes — Cyberpunk, Aurora, Ember, Frost, Void |
 
 ---
 
 ## Quick Start
 
-### Fresh Install (Easiest)
+### Prerequisites
 
-1. Double-click `install.bat`
-2. Done — everything is installed automatically
-3. Run `start.bat` to launch the app
+- [Node.js](https://nodejs.org) v22+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) installed and in your PATH
+- [ffmpeg](https://ffmpeg.org) installed and in your PATH
 
-### Fresh Install (Interactive)
+### Install & Run
 
-1. Run `install.ps1` (right-click -> "Run with PowerShell")
-2. Follow the prompts to choose location and options
-3. Run `start.bat` to launch the app
-
-### Fresh Install (Power User)
-
-```powershell
-# Fully automated with defaults
-.\install.ps1 -Auto
-
-# Custom location
-.\install.ps1 -Auto -Path "C:\MyApps\Seal-Web-App"
-
-# Custom location, no desktop shortcut
-.\install.ps1 -Auto -Path "C:\MyApps\Seal-Web-App" -NoShortcut
+```bash
+git clone https://github.com/Nadeesha-chathuranga/Seal-Web-App.git
+cd Seal-Web-App
+npm run install:all
+npm run dev
 ```
 
-### Already Installed
+- Frontend: http://localhost:3000
+- Backend: http://localhost:5000
 
-Just double-click `start.bat`.
+### Commands
 
-### Update to Latest Version
-
-Double-click `update.bat` to pull the latest code and update yt-dlp/ffmpeg.
-
----
-
-## Files
-
-| File | Description |
+| Command | Description |
 |---|---|
-| `install.bat` | One-click installer. Double-click to install everything automatically. |
-| `install.ps1` | Full installer with options. Supports `-Auto`, `-Path`, `-NoShortcut` parameters. |
-| `start.bat` | Launches the app. Checks ports, starts servers, opens browser automatically. |
-| `update.bat` | Updates everything — pulls latest code, reinstalls npm deps, upgrades yt-dlp and ffmpeg. |
-| `uninstall.bat` | Removes the app and optionally uninstalls tools. |
+| `npm run dev` | Start backend + frontend together |
+| `npm run server:dev` | Start backend only (port 5000) |
+| `npm run client:dev` | Start frontend only (port 3000) |
+| `npm run build` | Build frontend for production |
+| `npm start` | Run production server |
 
 ---
 
-## What Gets Installed
-
-| Tool | Purpose | Installed By |
-|---|---|---|
-| [Git](https://git-scm.com) | Clone and update the repository | `winget install Git.Git` |
-| [Node.js](https://nodejs.org) (v22 LTS) | Run the Express backend and React frontend | `winget install OpenJS.NodeJS.LTS` |
-| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download videos from thousands of sites | `winget install yt-dlp` |
-| [ffmpeg](https://ffmpeg.org) | Merge audio/video streams and convert formats | `winget install Gyan.FFmpeg` |
-
-All tools are optional — if you already have them, the installer skips them automatically.
-
----
-
-## Requirements
-
-- Windows 10 or 11
-- Internet connection (for initial install and video downloads)
-- [winget](https://github.com/microsoft/winget-cli) package manager (comes pre-installed on Windows 11)
-
----
-
-## Installation Details
-
-### Default Install Location
+## Project Structure
 
 ```
-%USERPROFILE%\Documents\GitHub\Seal-Web-App
+Seal-Web-App/
+├── server/              Express backend
+│   ├── index.js         Entry point, Socket.io setup
+│   └── routes/
+│       ├── download.js  yt-dlp download handling
+│       ├── info.js      Video info fetching
+│       ├── formats.js   Quality presets
+│       └── templates.js yt-dlp argument templates
+├── client/              Vite + React frontend
+│   ├── src/
+│   │   ├── components/  UI components
+│   │   ├── contexts/    Socket.io context
+│   │   ├── theme/       5 neon themes
+│   │   └── config.ts    API configuration
+│   └── vite.config.ts
+├── downloads/           Downloaded files
+├── templates/           yt-dlp template configs
+├── .env                 Server configuration
+└── package.json
 ```
 
-During installation, you can choose a custom location or use the default.
+---
 
-### Desktop Shortcut
+## API Endpoints
 
-The installer offers to create a `Seal Web App.bat` shortcut on your Desktop for easy access.
-
-### Install Log
-
-After installation, a log file is saved to `install.log` in the project folder. Share this if you need help troubleshooting.
-
-### Installer Parameters
-
-| Parameter | Description | Example |
+| Method | Endpoint | Description |
 |---|---|---|
-| `-Auto` | Skip all prompts, use defaults | `.\install.ps1 -Auto` |
-| `-Path "C:\..."` | Custom install location | `.\install.ps1 -Path "C:\MyDir"` |
-| `-NoShortcut` | Skip desktop shortcut creation | `.\install.ps1 -NoShortcut` |
-
-Parameters can be combined: `.\install.ps1 -Auto -Path "C:\Apps" -NoShortcut`
-
----
-
-## Updating
-
-Run `update.bat` at any time to:
-
-- Pull the latest code from GitHub
-- Reinstall npm dependencies (in case new ones were added)
-- Upgrade yt-dlp (frequently updated for site compatibility)
-- Upgrade ffmpeg
+| POST | `/api/info` | Get video/audio info from URL |
+| GET | `/api/download/list` | List all downloads |
+| GET | `/api/download/queue` | Get current queue status |
+| POST | `/api/download` | Start a download |
+| DELETE | `/api/download/:id` | Cancel a download |
+| GET | `/api/download/browsers` | Detect installed browsers |
+| POST | `/api/download/cookie-test` | Test cookie file access |
+| GET | `/api/formats/quality-presets` | Get quality presets |
+| GET | `/api/templates` | List templates |
+| POST | `/api/templates` | Create template |
+| PUT | `/api/templates/:id` | Update template |
+| DELETE | `/api/templates/:id` | Delete template |
 
 ---
 
-## Uninstalling
+## Configuration
 
-Run `uninstall.bat` to remove:
+Environment variables in `.env`:
 
-- The Seal Web App project folder
-- The Desktop shortcut (if created)
-- Optionally: yt-dlp, ffmpeg, Node.js, Git
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `5000` | Backend server port |
+| `CLIENT_ORIGIN` | `http://localhost:3000` | Frontend URL for CORS |
+| `NODE_ENV` | `development` | Environment mode |
 
 ---
 
-## Troubleshooting
+## Roadmap
 
-| Issue | Solution |
-|---|---|
-| PowerShell blocks `install.ps1` | Use `install.bat` instead (no PowerShell restrictions), or right-click -> "Run with PowerShell" |
-| `yt-dlp not found` after install | Close and reopen your terminal, or run: `refreshenv` |
-| Port 3000 or 5000 already in use | Close the other application using that port, or the script will warn you before starting |
-| Downloads failing | Check the URL is supported by yt-dlp: `yt-dlp --list-extractors` |
-| Node.js version error | Install Node.js v22 LTS: `winget install OpenJS.NodeJS.LTS` |
-| Debug mode | Run: `set DEBUG=seal-web-app:* && npm run dev` |
-| Still stuck? | Check the [Seal Web App issues](https://github.com/Nadeesha-chathuranga/Seal-Web-App/issues) or share your `install.log` |
+- [ ] Windows one-click installer
+- [ ] macOS/Linux installer scripts
+- [ ] Download history persistence
+- [ ] Batch download support
 
 ---
 
 ## Credits
 
-This project is a fork of [Seal Web App](https://github.com/sh13y/Seal-Web-App) by [sh13y](https://github.com/sh13y). The original project provides a web-based video downloader powered by yt-dlp and ffmpeg.
-
-### Original Project
-
-| Tool | Repository |
-|---|---|
-| **Seal Web App** (original) | https://github.com/sh13y/Seal-Web-App |
-
-### Dependencies
-
-| Tool | Repository |
-|---|---|
-| **yt-dlp** | https://github.com/yt-dlp/yt-dlp |
-| **ffmpeg** | https://ffmpeg.org |
-| **Node.js** | https://nodejs.org |
-| **Git** | https://git-scm.com |
-
-Original project developed by: https://github.com/sh13y
-
----
+Fork of [Seal Web App](https://github.com/sh13y/Seal-Web-App) by [sh13y](https://github.com/sh13y).
 
 ## License
 
-Based on [Seal Web App](https://github.com/sh13y/Seal-Web-App) by sh13y. See the original repository for license information.
+GPL-3.0

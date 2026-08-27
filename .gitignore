@@ -18,6 +18,9 @@ yarn.lock
 /dist/
 /build/
 
+# Automation scripts (not yet released)
+/Automate/
+
 # Download files
 /downloads/
 *.mp4
