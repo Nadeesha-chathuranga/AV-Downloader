@@ -153,6 +153,33 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       }));
     });
 
+    newSocket.on('state-restore', (data: { downloads?: Array<{
+      type?: 'active' | 'queued';
+      id: string;
+      url: string;
+      playlistId?: string;
+      filename?: string;
+    }> }) => {
+      const items = data?.downloads || [];
+      if (items.length === 0) return;
+      setDownloads((prev) => {
+        const next = [...prev];
+        for (const item of items) {
+          if (next.some((d) => d.id === item.id)) continue;
+          next.push({
+            id: item.id,
+            url: item.url,
+            status: item.type === 'active' ? 'downloading' : 'queued',
+            progress: 0,
+            filename: item.filename || '',
+            error: null,
+            playlistId: item.playlistId,
+          });
+        }
+        return next;
+      });
+    });
+
     return () => {
       newSocket.close();
     };

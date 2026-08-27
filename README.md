@@ -10,7 +10,7 @@ A web-based video/audio downloader powered by yt-dlp and ffmpeg. Download media 
 |---|---|
 | Backend | Express 4, Socket.io, yt-dlp, ffmpeg |
 | Frontend | React 19, Vite 6, MUI 7, TypeScript 5 |
-| Themes | 5 neon themes — Cyberpunk, Aurora, Ember, Frost, Void |
+| Themes | 10 neon themes: Cyberpunk, Aurora, Ember, Frost, Void, Ocean, Sunset, Forest, Royal, Matrix |
 
 ---
 
@@ -61,7 +61,7 @@ Seal-Web-App/
 │   ├── src/
 │   │   ├── components/  UI components
 │   │   ├── contexts/    Socket.io context
-│   │   ├── theme/       5 neon themes
+│   │   ├── theme/       10 neon themes
 │   │   └── config.ts    API configuration
 │   └── vite.config.ts
 ├── downloads/           Downloaded files
@@ -100,6 +100,18 @@ Environment variables in `.env`:
 | `PORT` | `5000` | Backend server port |
 | `CLIENT_ORIGIN` | `http://localhost:3000` | Frontend URL for CORS |
 | `NODE_ENV` | `development` | Environment mode |
+
+---
+
+## Queue & Download Persistence
+
+The download queue and any interrupted (active) downloads are persisted to `server/state.json` so they survive backend restarts — including development restarts, which previously lost everything (e.g. saving settings mid-download restarted the backend via nodemon).
+
+- **Queue:** pending jobs are restored and re-issued.
+- **Active downloads:** interrupted jobs are re-issued with the same `-o` args, so yt-dlp resumes from the existing `.part` file.
+- `server/state.json` is runtime data and is gitignored.
+
+In development, `nodemon.json` restricts watching to `server/**/*.js` and ignores `config.json` and `downloads/`, so changing settings no longer triggers a server restart.
 
 ---
 
