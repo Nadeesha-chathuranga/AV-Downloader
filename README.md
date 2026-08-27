@@ -109,6 +109,8 @@ The download queue and any interrupted (active) downloads are persisted to `serv
 
 - **Queue:** pending jobs are restored and re-issued.
 - **Active downloads:** interrupted jobs are re-issued with the same `-o` args, so yt-dlp resumes from the existing `.part` file.
+- **Failed/interrupted downloads:** recorded in a `resumable` list and shown in the UI; they are *not* auto-restarted on boot, but each shows a **Resume** button that re-issues the original yt-dlp args so the `.part` file is continued.
+- **Cancel** deletes the `.part` file, so a cancelled download is not resumable.
 - `server/state.json` is runtime data and is gitignored.
 
 In development, `nodemon.json` restricts watching to `server/**/*.js` and ignores `config.json` and `downloads/`, so changing settings no longer triggers a server restart.

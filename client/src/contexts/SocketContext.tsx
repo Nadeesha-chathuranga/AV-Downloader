@@ -5,7 +5,7 @@ import { apiUrl } from '../config';
 export interface DownloadInfo {
   id: string;
   url: string;
-  status: 'queued' | 'starting' | 'downloading' | 'completed' | 'error' | 'cancelled';
+  status: 'queued' | 'starting' | 'downloading' | 'resuming' | 'completed' | 'error' | 'cancelled';
   progress: number;
   filename: string;
   error: string | null;
@@ -38,6 +38,7 @@ interface SocketContextType {
   playlists: Record<string, PlaylistInfo>;
   queue: QueueState;
   cancelDownload: (id: string) => void;
+  resumeDownload: (id: string) => Promise<void>;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -70,6 +71,18 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       );
     } catch (err) {
       console.error('Failed to cancel download:', err);
+    }
+  }, [apiUrl]);
+
+  const resumeDownload = useCallback(async (id: string) => {
+    try {
+      await fetch(`${apiUrl}/download/resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch (err) {
+      console.error('Failed to resume download:', err);
     }
   }, [apiUrl]);
 
@@ -154,11 +167,12 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     newSocket.on('state-restore', (data: { downloads?: Array<{
-      type?: 'active' | 'queued';
+      type?: 'active' | 'queued' | 'resumable';
       id: string;
       url: string;
       playlistId?: string;
       filename?: string;
+      status?: string;
     }> }) => {
       const items = data?.downloads || [];
       if (items.length === 0) return;
@@ -166,13 +180,16 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         const next = [...prev];
         for (const item of items) {
           if (next.some((d) => d.id === item.id)) continue;
+          let status: DownloadInfo['status'] = 'queued';
+          if (item.type === 'active') status = 'resuming';
+          else if (item.type === 'resumable') status = 'error';
           next.push({
             id: item.id,
             url: item.url,
-            status: item.type === 'active' ? 'downloading' : 'queued',
+            status,
             progress: 0,
             filename: item.filename || '',
-            error: null,
+            error: item.type === 'resumable' ? 'Interrupted download' : null,
             playlistId: item.playlistId,
           });
         }
@@ -186,7 +203,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, downloads, playlists, queue, cancelDownload }}>
+    <SocketContext.Provider value={{ socket, downloads, playlists, queue, cancelDownload, resumeDownload }}>
       {children}
     </SocketContext.Provider>
   );

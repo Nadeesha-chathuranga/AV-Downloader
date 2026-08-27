@@ -6,40 +6,48 @@ const STATE_TMP_PATH = STATE_PATH + '.tmp';
 
 const serializeJob = (job) => {
   const info = job.info || {};
-  return {
+  const serialized = {
     id: job.id,
     url: job.url,
     args: job.args,
     downloadsDir: job.downloadsDir,
-    filename: info.filename || '',
-    playlistId: info.playlistId || undefined,
-    playlistIndex: info.playlistIndex,
-    playlistTotal: info.playlistTotal,
+    filename: info.filename || job.filename || '',
+    playlistId: info.playlistId || job.playlistId || undefined,
+    playlistIndex: info.playlistIndex ?? job.playlistIndex,
+    playlistTotal: info.playlistTotal ?? job.playlistTotal,
     startedAt: job.startedAt || Date.now(),
   };
+  if (job.status) serialized.status = job.status;
+  return serialized;
 };
 
-const persist = (queuedJobs, activeJobs) => {
+const persist = (queuedJobs, activeJobs, resumableJobs = []) => {
   const payload = {
-    version: 1,
+    version: 2,
     updatedAt: new Date().toISOString(),
     queued: queuedJobs.map(serializeJob),
     active: activeJobs.map(serializeJob),
+    resumable: resumableJobs.map(serializeJob),
   };
   fs.writeJsonSync(STATE_TMP_PATH, payload, { spaces: 2 });
   fs.moveSync(STATE_TMP_PATH, STATE_PATH, { overwrite: true });
 };
 
 const load = () => {
+  const empty = { queued: [], active: [], resumable: [] };
   try {
     if (fs.existsSync(STATE_PATH)) {
       const data = fs.readJsonSync(STATE_PATH);
-      if (data && Array.isArray(data.queued) && Array.isArray(data.active)) {
-        return { queued: data.queued, active: data.active };
+      if (data) {
+        return {
+          queued: Array.isArray(data.queued) ? data.queued : [],
+          active: Array.isArray(data.active) ? data.active : [],
+          resumable: Array.isArray(data.resumable) ? data.resumable : [],
+        };
       }
     }
   } catch (e) {}
-  return { queued: [], active: [] };
+  return empty;
 };
 
 const clear = () => {
