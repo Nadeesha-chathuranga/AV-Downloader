@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import { useAppTheme } from '../theme/ThemeContext';
 import axios from 'axios';
+import { apiUrl } from '../config';
 
 interface Template {
   id: string;
@@ -40,11 +41,6 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ open, template, onClose
   const [args, setArgs] = useState('');
   const [error, setError] = useState('');
   const { currentTheme } = useAppTheme();
-
-  const apiUrl =
-    process.env.NODE_ENV === 'production'
-      ? '/api'
-      : `${process.env.REACT_APP_SERVER_URL || 'http://localhost:5000'}/api`;
 
   useEffect(() => {
     if (template) {
