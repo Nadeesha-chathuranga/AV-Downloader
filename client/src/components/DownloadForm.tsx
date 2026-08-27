@@ -183,12 +183,20 @@ const DownloadForm: React.FC = () => {
   const buildSelector = (formatId: string, formats: FormatEntry[]): string => {
     const fmt = formats.find((f) => f.format_id === formatId);
     if (!fmt) return formatId;
-    if (fmt.type === 'video' || fmt.type === 'audio') {
-      // Progressive (video+audio in one file) or audio-only - safe to use as-is
-      return formatId;
+    const height = fmt.height || '';
+    const cap = (prefix: string) => `${prefix}${height ? `[height<=${height}]` : ''}`;
+    if (fmt.type === 'video-only') {
+      // Merge with best audio, degrading by height cap in case the exact id
+      // is unavailable at download time (e.g. cookies switch the player client).
+      return `${formatId}+bestaudio/${cap('bestvideo')}+bestaudio/${cap('best')}/b`;
     }
-    // Video-only format - merge with best available audio
-    return `${formatId}+bestaudio`;
+    if (fmt.type === 'audio') {
+      // Audio-only pick; fall back to the lightest combined stream so audio
+      // extraction never downloads a huge video file.
+      return `${formatId}/bestaudio/best[height<=144]/b`;
+    }
+    // Progressive (video+audio in one file) - try exactly, then by height cap.
+    return `${formatId}/${cap('best')}/b`;
   };
 
   const handleSelectFormat = (formatId: string) => {
