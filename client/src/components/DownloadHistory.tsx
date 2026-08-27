@@ -8,7 +8,6 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   IconButton,
-  Chip,
   Box,
   Alert,
   Tooltip,
@@ -21,6 +20,7 @@ import {
   InsertDriveFile as FileIcon,
   FolderOpen as FolderIcon,
 } from '@mui/icons-material';
+import { Button, ButtonGroup } from '@mui/material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
 import { apiUrl } from '../config';
@@ -36,7 +36,12 @@ const DownloadHistory: React.FC = () => {
   const [files, setFiles] = useState<DownloadedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tab, setTab] = useState<'video' | 'audio'>('video');
   const { currentTheme } = useAppTheme();
+
+  const videos = files.filter((f) => getFileType(f.name) === 'video');
+  const audios = files.filter((f) => getFileType(f.name) === 'audio');
+  const visibleFiles = tab === 'video' ? videos : audios;
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -140,23 +145,71 @@ const DownloadHistory: React.FC = () => {
                 Download History
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {files.length} files
+                {videos.length} videos, {audios.length} audio files
               </Typography>
             </Box>
           </Box>
-          <Tooltip title="Refresh">
-            <IconButton
-              onClick={fetchFiles}
-              disabled={loading}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ButtonGroup
+              variant="outlined"
+              size="small"
               sx={{
-                color: 'text.secondary',
-                transition: 'all 0.2s ease',
-                '&:hover': { color: currentTheme.colors.primary },
+                borderColor: currentTheme.colors.border,
+                borderRadius: 0.75,
+                '& .MuiButtonGroup-grouped': { borderColor: currentTheme.colors.border },
               }}
             >
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
+              <Button
+                startIcon={<MovieIcon sx={{ fontSize: 15 }} />}
+                onClick={() => setTab('video')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  background: tab === 'video' ? currentTheme.colors.primary : 'transparent',
+                  borderColor: currentTheme.colors.border,
+                  color: tab === 'video' ? '#fff' : 'text.secondary',
+                  '&:hover': {
+                    borderColor: currentTheme.colors.primary,
+                    background: tab === 'video' ? currentTheme.colors.primary : `${currentTheme.colors.primary}22`,
+                  },
+                }}
+              >
+                Video ({videos.length})
+              </Button>
+              <Button
+                startIcon={<AudioFileIcon sx={{ fontSize: 15 }} />}
+                onClick={() => setTab('audio')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  background: tab === 'audio' ? currentTheme.colors.secondary : 'transparent',
+                  borderColor: currentTheme.colors.border,
+                  color: tab === 'audio' ? '#fff' : 'text.secondary',
+                  '&:hover': {
+                    borderColor: currentTheme.colors.secondary,
+                    background: tab === 'audio' ? currentTheme.colors.secondary : `${currentTheme.colors.secondary}22`,
+                  },
+                }}
+              >
+                Audio ({audios.length})
+              </Button>
+            </ButtonGroup>
+            <Tooltip title="Refresh">
+              <IconButton
+                onClick={fetchFiles}
+                disabled={loading}
+                sx={{
+                  color: 'text.secondary',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { color: currentTheme.colors.primary },
+                }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
         {error && (
@@ -173,7 +226,7 @@ const DownloadHistory: React.FC = () => {
           </Alert>
         )}
 
-        {files.length === 0 ? (
+        {visibleFiles.length === 0 ? (
           <Box
             sx={{
               textAlign: 'center',
@@ -181,12 +234,14 @@ const DownloadHistory: React.FC = () => {
               color: 'text.secondary',
             }}
           >
-            <FolderIcon sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
-            <Typography variant="body2">No downloaded files yet</Typography>
+            {tab === 'video' ? <MovieIcon sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} /> : <AudioFileIcon sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />}
+            <Typography variant="body2">
+              {tab === 'video' ? 'No videos downloaded yet' : 'No audio files yet'}
+            </Typography>
           </Box>
         ) : (
           <List disablePadding>
-            {files.map((file, index) => {
+            {visibleFiles.map((file, index) => {
               const fileType = getFileType(file.name);
               const typeStyle = getFileTypeStyle(fileType);
               return (
@@ -236,18 +291,6 @@ const DownloadHistory: React.FC = () => {
                         </Typography>
                       </Box>
                     }
-                  />
-                  <Chip
-                    label={fileType}
-                    size="small"
-                    sx={{
-                      background: typeStyle.bg,
-                      color: typeStyle.color,
-                      fontWeight: 600,
-                      borderRadius: 0.75,
-                      fontSize: '0.65rem',
-                      mr: 1,
-                    }}
                   />
                   <ListItemSecondaryAction>
                     <Tooltip title="Delete">
