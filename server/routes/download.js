@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
 const state = require('../state');
+const { getCookieArgs } = require('../ytdlpArgs');
 
 const DANGEROUS_FLAGS = [
   '--rm', '--exec', '--run', '--power-shell',
@@ -302,11 +303,7 @@ router.post('/', async (req, res) => {
     args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
 
     const config = loadConfig();
-    if (config.cookieFilePath) {
-      args.push('--cookies', config.cookieFilePath);
-    } else if (config.cookieBrowser) {
-      args.push('--cookies-from-browser', config.cookieBrowser);
-    }
+    args.push(...getCookieArgs());
 
     if (customArgs) {
       args.push(...parseCustomArgs(customArgs));
@@ -327,7 +324,9 @@ router.post('/', async (req, res) => {
       args.push('--extract-audio');
       args.push('--audio-format', format || 'mp3');
     } else {
-      if (quality && quality !== 'best') {
+      if (quality === 'worst') {
+        args.push('-f', 'worst');
+      } else if (quality && quality !== 'best') {
         args.push('-f', `best[height<=${quality}]/best`);
       } else {
         args.push('-f', 'b');
@@ -411,11 +410,7 @@ router.post('/playlist', async (req, res) => {
       args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
 
       const config = loadConfig();
-      if (config.cookieFilePath) {
-        args.push('--cookies', config.cookieFilePath);
-      } else if (config.cookieBrowser) {
-        args.push('--cookies-from-browser', config.cookieBrowser);
-      }
+      args.push(...getCookieArgs());
 
       if (audioOnly) {
         args.push('-f', 'bestaudio/best');
