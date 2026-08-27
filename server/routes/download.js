@@ -204,7 +204,7 @@ router.post('/cookie-test', async (req, res) => {
 // POST /api/download
 router.post('/', async (req, res) => {
   try {
-    const { url, format, quality, audioOnly, outputPath, customArgs, formatId,
+    const { url, format, quality, audioOnly, outputPath, customArgs, formatId, formatSelector,
       embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat } = req.body;
     const io = req.app.get('socketio');
 
@@ -234,6 +234,12 @@ router.post('/', async (req, res) => {
 
     if (customArgs) {
       args.push(...parseCustomArgs(customArgs));
+    } else if (formatSelector) {
+      args.push('-f', formatSelector);
+      if (audioOnly) {
+        args.push('--extract-audio');
+        args.push('--audio-format', format || 'mp3');
+      }
     } else if (formatId) {
       args.push('-f', formatId);
       if (audioOnly) {

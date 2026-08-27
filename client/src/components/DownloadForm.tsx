@@ -167,6 +167,7 @@ const DownloadForm: React.FC = () => {
   const [recommendedVideo, setRecommendedVideo] = useState<string | null>(null);
   const [recommendedAudio, setRecommendedAudio] = useState<string | null>(null);
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
+  const [selectedFormatSelector, setSelectedFormatSelector] = useState<string | undefined>(undefined);
   const [embedMetadata, setEmbedMetadata] = useState(true);
   const [embedThumbnail, setEmbedThumbnail] = useState(true);
   const [writeSubs, setWriteSubs] = useState(false);
@@ -178,6 +179,32 @@ const DownloadForm: React.FC = () => {
     audio: QualityPreset[];
   }>({ video: [], audio: [] });
   const { currentTheme } = useAppTheme();
+
+  const buildSelector = (formatId: string, formats: FormatEntry[]): string => {
+    const fmt = formats.find((f) => f.format_id === formatId);
+    if (!fmt) return formatId;
+    if (fmt.type === 'video' || fmt.type === 'audio') {
+      // Progressive (video+audio in one file) or audio-only - safe to use as-is
+      return formatId;
+    }
+    // Video-only format - merge with best available audio
+    return `${formatId}+bestaudio`;
+  };
+
+  const handleSelectFormat = (formatId: string) => {
+    setSelectedFormatId(formatId);
+    setSelectedFormatSelector(buildSelector(formatId, allFormats));
+  };
+
+  const resetFormatSelection = () => {
+    setSelectedFormatId(null);
+    setSelectedFormatSelector(undefined);
+    setVideoFormats([]);
+    setAudioFormats([]);
+    setAllFormats([]);
+    setRecommendedVideo(null);
+    setRecommendedAudio(null);
+  };
 
   const fetchQualityPresets = useCallback(async () => {
     try {
@@ -269,10 +296,7 @@ const DownloadForm: React.FC = () => {
     setError('');
     setVideoInfo(null);
     setPlaylistInfo(null);
-    setVideoFormats([]);
-    setAudioFormats([]);
-    setAllFormats([]);
-    setSelectedFormatId(null);
+    resetFormatSelection();
     try {
       if (isPlaylist) {
         const response = await axios.get(`${apiUrl}/info/playlist`, { params: { url } });
@@ -283,13 +307,18 @@ const DownloadForm: React.FC = () => {
 
         try {
           const fmtResponse = await axios.get(`${apiUrl}/formats`, { params: { url } });
-          setVideoFormats(fmtResponse.data.video_formats || []);
-          setAudioFormats(fmtResponse.data.audio_formats || []);
-          setAllFormats(fmtResponse.data.all_formats || []);
+          const fetchedAll = fmtResponse.data.all_formats || [];
+          const fetchedVideo = fmtResponse.data.video_formats || [];
+          const fetchedAudio = fmtResponse.data.audio_formats || [];
+          setVideoFormats(fetchedVideo);
+          setAudioFormats(fetchedAudio);
+          setAllFormats(fetchedAll);
           setRecommendedVideo(fmtResponse.data.recommended_video || null);
           setRecommendedAudio(fmtResponse.data.recommended_audio || null);
           if (fmtResponse.data.recommended_video) {
-            setSelectedFormatId(fmtResponse.data.recommended_video);
+            const rec = fmtResponse.data.recommended_video;
+            setSelectedFormatId(rec);
+            setSelectedFormatSelector(buildSelector(rec, fetchedAll));
           }
         } catch {
           // Formats fetch failed, non-critical
@@ -336,6 +365,7 @@ const DownloadForm: React.FC = () => {
         audioOnly,
         customArgs: customArgs.trim() || undefined,
         formatId: selectedFormatId || undefined,
+        formatSelector: selectedFormatSelector || undefined,
         embedMetadata,
         embedThumbnail,
         writeSubs,
@@ -348,10 +378,7 @@ const DownloadForm: React.FC = () => {
         setUrl('');
         setVideoInfo(null);
         setPlaylistInfo(null);
-        setVideoFormats([]);
-        setAudioFormats([]);
-        setAllFormats([]);
-        setSelectedFormatId(null);
+        resetFormatSelection();
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -388,6 +415,7 @@ const DownloadForm: React.FC = () => {
         setUrl('');
         setVideoInfo(null);
         setPlaylistInfo(null);
+        resetFormatSelection();
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -820,7 +848,7 @@ const DownloadForm: React.FC = () => {
             recommendedVideo={recommendedVideo}
             recommendedAudio={recommendedAudio}
             selectedFormatId={selectedFormatId}
-            onSelectFormat={setSelectedFormatId}
+            onSelectFormat={handleSelectFormat}
           />
         )}
       </CardContent>
