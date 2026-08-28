@@ -25,6 +25,7 @@ import { apiUrl } from '../config';
 
 interface DownloadedFile {
   name: string;
+  folder?: string;
   size: number;
   createdAt: string;
   modifiedAt: string;
@@ -56,9 +57,16 @@ const DownloadHistory: React.FC = () => {
     fetchFiles();
   }, [fetchFiles]);
 
-  const deleteFile = async (filename: string) => {
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFiles();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchFiles]);
+
+  const deleteFile = async (filename: string, folder?: string) => {
     try {
-      await axios.delete(`${apiUrl}/download/${encodeURIComponent(filename)}`);
+      await axios.delete(`${apiUrl}/download/${encodeURIComponent(filename)}${folder ? `?folder=${folder}` : ''}`);
       setFiles(files.filter((file) => file.name !== filename));
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to delete file');
@@ -321,7 +329,7 @@ const DownloadHistory: React.FC = () => {
                     <Tooltip title="Delete">
                       <IconButton
                         edge="end"
-                        onClick={() => deleteFile(file.name)}
+                        onClick={() => deleteFile(file.name, file.folder)}
                         sx={{
                           color: 'text.secondary',
                           transition: 'all 0.2s ease',

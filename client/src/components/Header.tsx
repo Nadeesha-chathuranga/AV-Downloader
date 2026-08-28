@@ -13,15 +13,18 @@ import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Settings as SettingsIcon,
+  MenuBook as MenuBookIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import SettingsDialog from './SettingsDialog';
+import UserGuideDialog from './UserGuideDialog';
 import { apiUrl } from '../config';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const Header: React.FC = () => {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { currentTheme } = useAppTheme();
 
   useEffect(() => {
@@ -137,6 +140,28 @@ const Header: React.FC = () => {
                 },
               }}
             />
+            <Tooltip title="User Guide">
+              <IconButton
+                onClick={() => setHelpOpen(true)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  color: 'text.secondary',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 0.75,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    color: currentTheme.colors.primary,
+                    borderColor: `${currentTheme.colors.primary}66`,
+                    background: `${currentTheme.colors.primary}11`,
+                    boxShadow: `0 0 12px ${currentTheme.colors.primary}22`,
+                  },
+                }}
+              >
+                <MenuBookIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Settings">
               <IconButton
                 onClick={() => setSettingsOpen(true)}
@@ -164,6 +189,7 @@ const Header: React.FC = () => {
       </AppBar>
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <UserGuideDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {backendStatus === 'disconnected' && (
         <Alert

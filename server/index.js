@@ -58,13 +58,15 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Ensure downloads and templates directories exist
-const downloadsDir = path.join(__dirname, '../downloads');
 const templatesDir = path.join(__dirname, '../templates');
-fs.ensureDirSync(downloadsDir);
 fs.ensureDirSync(templatesDir);
 
 // Routes
 const downloadRouter = require('./routes/download');
+const downloadsDir = typeof downloadRouter.getDownloadsDir === 'function' ? downloadRouter.getDownloadsDir() : path.join(__dirname, '../downloads');
+fs.ensureDirSync(downloadsDir);
+fs.ensureDirSync(path.join(downloadsDir, 'Video'));
+fs.ensureDirSync(path.join(downloadsDir, 'Audio'));
 app.use('/api/download', downloadRouter);
 app.use('/api/info', require('./routes/info'));
 app.use('/api/formats', require('./routes/formats'));

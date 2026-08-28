@@ -11,6 +11,7 @@ const serializeJob = (job) => {
     url: job.url,
     args: job.args,
     downloadsDir: job.downloadsDir,
+    outDir: job.outDir,
     filename: info.filename || job.filename || '',
     playlistId: info.playlistId || job.playlistId || undefined,
     playlistIndex: info.playlistIndex ?? job.playlistIndex,

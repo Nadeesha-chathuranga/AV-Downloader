@@ -10,6 +10,7 @@ export interface DownloadInfo {
   filename: string;
   error: string | null;
   totalSize?: string;
+  totalSizeEstimated?: boolean;
   downloadedSize?: string;
   speed?: string;
   eta?: string;

@@ -34,6 +34,7 @@ import axios from 'axios';
 import { useSocket, DownloadInfo } from '../contexts/SocketContext';
 import { apiUrl } from '../config';
 import { useAppTheme } from '../theme/ThemeContext';
+import { useSmoothedMetrics } from '../hooks/useSmoothedMetrics';
 
 interface QueueState {
   maxConcurrent: number;
@@ -42,6 +43,150 @@ interface QueueState {
   queued: Array<{ id: string; url: string; info: DownloadInfo }>;
   active: string[];
 }
+
+const DownloadItem: React.FC<{
+  download: DownloadInfo;
+  resumeDownload: (id: string) => void;
+  onCancel: (name: string) => void;
+}> = ({ download, resumeDownload, onCancel }) => {
+  const { currentTheme } = useAppTheme();
+  const smooth = useSmoothedMetrics(download);
+
+  const getStatusIcon = (status: string, size: number = 20) => {
+    switch (status) {
+      case 'starting':
+        return <HourglassEmptyIcon sx={{ color: currentTheme.colors.info, fontSize: size }} />;
+      case 'downloading':
+        return <DownloadIcon sx={{ color: currentTheme.colors.primary, fontSize: size }} />;
+      default:
+        return <HourglassEmptyIcon sx={{ fontSize: size }} />;
+    }
+  };
+
+  return (
+    <Box
+      className="downloading-indicator"
+      sx={{
+        mb: 2,
+        p: 2,
+        borderRadius: 1,
+        background: `${currentTheme.colors.background}66`,
+        border: `1px solid ${currentTheme.colors.border}`,
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        {getStatusIcon(download.status, 18)}
+        <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1, minWidth: 0 }} noWrap>
+          {download.filename || 'Preparing...'}
+        </Typography>
+        {download.status === 'resuming' && (
+          <>
+            <Tooltip title="Resume download">
+              <IconButton
+                onClick={() => resumeDownload(download.id)}
+                sx={{
+                  p: 1,
+                  width: 34,
+                  height: 34,
+                  color: currentTheme.colors.success,
+                  '&:hover': { background: `${currentTheme.colors.success}22` },
+                }}
+              >
+                <ResumeIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Dismiss">
+              <IconButton
+                onClick={() => onCancel(download.filename || 'this download')}
+                sx={{
+                  p: 1,
+                  width: 34,
+                  height: 34,
+                  color: currentTheme.colors.error,
+                  '&:hover': { background: `${currentTheme.colors.error}22` },
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+        {download.status !== 'resuming' && (
+          <Tooltip title="Cancel">
+            <IconButton
+              onClick={() => onCancel(download.filename || 'this download')}
+              sx={{
+                p: 1,
+                width: 34,
+                height: 34,
+                color: currentTheme.colors.error,
+                '&:hover': { background: `${currentTheme.colors.error}22` },
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+
+      <Box sx={{ mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: currentTheme.colors.primary, fontSize: '0.8rem' }}>
+            {Math.round(download.progress)}%
+          </Typography>
+          {smooth.eta && smooth.eta !== 'Unknown' && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+              ETA {smooth.eta}
+            </Typography>
+          )}
+        </Box>
+        <Box className="progress-glow">
+          <LinearProgress
+            variant="determinate"
+            value={download.progress}
+            sx={{
+              height: 6,
+              borderRadius: 0.75,
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 0.75,
+                background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                transition: 'transform 0.3s ease',
+              },
+            }}
+          />
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          p: 1,
+          borderRadius: 0.75,
+          background: `${currentTheme.colors.background}88`,
+        }}
+      >
+        {download.totalSize && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <StorageIcon sx={{ fontSize: 12, color: currentTheme.colors.info }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
+              {download.totalSizeEstimated ? `~${download.totalSize}` : download.totalSize}
+            </Typography>
+          </Box>
+        )}
+        {smooth.speed && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <SpeedIcon sx={{ fontSize: 12, color: currentTheme.colors.success }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
+              {smooth.speed}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+};
 
 const DownloadPanel: React.FC = () => {
   const { downloads, playlists, cancelDownload, resumeDownload } = useSocket();
@@ -86,17 +231,6 @@ const DownloadPanel: React.FC = () => {
     queuedCount > 0 ||
     failedDownloads.length > 0 ||
     activePlaylistIds.length > 0;
-
-  const getStatusIcon = (status: string, size: number = 20) => {
-    switch (status) {
-      case 'starting':
-        return <HourglassEmptyIcon sx={{ color: currentTheme.colors.info, fontSize: size }} />;
-      case 'downloading':
-        return <DownloadIcon sx={{ color: currentTheme.colors.primary, fontSize: size }} />;
-      default:
-        return <HourglassEmptyIcon sx={{ fontSize: size }} />;
-    }
-  };
 
   const dividerSx = { borderColor: `${currentTheme.colors.border}`, opacity: 0.5 };
 
@@ -207,128 +341,12 @@ const DownloadPanel: React.FC = () => {
 
           {/* Active Downloads */}
           {activeDownloads.map((download) => (
-            <Box
+            <DownloadItem
               key={download.id}
-              className="downloading-indicator"
-              sx={{
-                mb: 2,
-                p: 2,
-                borderRadius: 1,
-                background: `${currentTheme.colors.background}66`,
-                border: `1px solid ${currentTheme.colors.border}`,
-                transition: 'all 0.3s ease',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                {getStatusIcon(download.status, 18)}
-                <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1, minWidth: 0 }} noWrap>
-                  {download.filename || 'Preparing...'}
-                </Typography>
-                {download.status === 'resuming' && (
-                  <>
-                    <Tooltip title="Resume download">
-                      <IconButton
-                        onClick={() => resumeDownload(download.id)}
-                        sx={{
-                          p: 1,
-                          width: 34,
-                          height: 34,
-                          color: currentTheme.colors.success,
-                          '&:hover': { background: `${currentTheme.colors.success}22` },
-                        }}
-                      >
-                        <ResumeIcon sx={{ fontSize: 20 }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Dismiss">
-                    <IconButton
-                      onClick={() => setCancelTarget({ id: download.id, name: download.filename || 'this download' })}
-                      sx={{
-                        p: 1,
-                        width: 34,
-                        height: 34,
-                        color: currentTheme.colors.error,
-                        '&:hover': { background: `${currentTheme.colors.error}22` },
-                      }}
-                    >
-                      <CloseIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
-                    </Tooltip>
-                  </>
-                )}
-                {download.status !== 'resuming' && (
-                <Tooltip title="Cancel">
-                  <IconButton
-                    onClick={() => setCancelTarget({ id: download.id, name: download.filename || 'this download' })}
-                    sx={{
-                      p: 1,
-                      width: 34,
-                      height: 34,
-                      color: currentTheme.colors.error,
-                      '&:hover': { background: `${currentTheme.colors.error}22` },
-                    }}
-                  >
-                    <CloseIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
-                </Tooltip>
-                )}
-              </Box>
-
-              <Box sx={{ mb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: currentTheme.colors.primary, fontSize: '0.8rem' }}>
-                    {Math.round(download.progress)}%
-                  </Typography>
-                  {download.eta && download.eta !== 'Unknown' && (
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                      ETA {download.eta}
-                    </Typography>
-                  )}
-                </Box>
-                <Box className="progress-glow">
-                  <LinearProgress
-                    variant="determinate"
-                    value={download.progress}
-                    sx={{
-                      height: 6,
-                      borderRadius: 0.75,
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 0.75,
-                        background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
-                        transition: 'transform 0.3s ease',
-                      },
-                    }}
-                  />
-                </Box>
-              </Box>
-
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 2,
-                  p: 1,
-                  borderRadius: 0.75,
-                  background: `${currentTheme.colors.background}88`,
-                }}
-              >
-                {download.totalSize && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <StorageIcon sx={{ fontSize: 12, color: currentTheme.colors.info }} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
-                      {download.downloadedSize ? `${download.downloadedSize} / ${download.totalSize}` : download.totalSize}
-                    </Typography>
-                  </Box>
-                )}
-                {download.speed && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <SpeedIcon sx={{ fontSize: 12, color: currentTheme.colors.success }} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 500 }}>
-                      {download.speed}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Box>
+              download={download}
+              resumeDownload={resumeDownload}
+              onCancel={(name) => setCancelTarget({ id: download.id, name })}
+            />
           ))}
 
           {/* Queue Section */}
