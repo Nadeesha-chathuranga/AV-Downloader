@@ -28,6 +28,7 @@ import {
   Link as LinkIcon,
   QueueMusic as PlaylistIcon,
   Code as CodeIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -150,7 +151,7 @@ const DownloadForm: React.FC = () => {
   const [url, setUrl] = useState('');
   const [audioOnly, setAudioOnly] = useState(false);
   const [format, setFormat] = useState('mp3');
-  const [quality, setQuality] = useState('best');
+  const [quality, setQuality] = useState('720');
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [playlistInfo, setPlaylistInfo] = useState<PlaylistEntry[] | null>(null);
   const [isPlaylist, setIsPlaylist] = useState(false);
@@ -169,7 +170,7 @@ const DownloadForm: React.FC = () => {
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
   const [selectedFormatSelector, setSelectedFormatSelector] = useState<string | undefined>(undefined);
   const [embedMetadata, setEmbedMetadata] = useState(true);
-  const [embedThumbnail, setEmbedThumbnail] = useState(true);
+  const [embedThumbnail, setEmbedThumbnail] = useState(false);
   const [writeSubs, setWriteSubs] = useState(false);
   const [embedSubs, setEmbedSubs] = useState(true);
   const [subLang, setSubLang] = useState('en');
@@ -179,6 +180,13 @@ const DownloadForm: React.FC = () => {
     audio: QualityPreset[];
   }>({ video: [], audio: [] });
   const { currentTheme } = useAppTheme();
+
+  // Auto-dismiss the success notification after a few seconds.
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(''), 4000);
+    return () => clearTimeout(timer);
+  }, [success]);
 
   const buildSelector = (formatId: string, formats: FormatEntry[]): string => {
     const fmt = formats.find((f) => f.format_id === formatId);
@@ -366,14 +374,20 @@ const DownloadForm: React.FC = () => {
     setError('');
     setSuccess('');
     try {
+      // For audio-only we ignore any video format selection (which may be
+      // auto-selected by "Get Info") — the backend just extracts audio.
+      const useFormatSelection = !audioOnly && selectedFormatId;
+      const selectedFmt = useFormatSelection ? allFormats.find((f) => f.format_id === selectedFormatId) : undefined;
+      const expectedSize = useFormatSelection && selectedFmt && selectedFmt.filesize ? selectedFmt.filesize : undefined;
       const response = await axios.post(`${apiUrl}/download`, {
         url,
         format: audioOnly ? format : undefined,
         quality: !audioOnly ? quality : undefined,
         audioOnly,
         customArgs: customArgs.trim() || undefined,
-        formatId: selectedFormatId || undefined,
-        formatSelector: selectedFormatSelector || undefined,
+        formatId: useFormatSelection ? selectedFormatId : undefined,
+        formatSelector: useFormatSelection ? selectedFormatSelector : undefined,
+        expectedSize,
         embedMetadata,
         embedThumbnail,
         writeSubs,
@@ -560,14 +574,72 @@ const DownloadForm: React.FC = () => {
                 Download
               </Button>
             )}
-            <Tooltip title={showAdvanced ? 'Hide options' : 'Show options'}>
-              <IconButton
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                sx={{ color: 'text.secondary', transition: 'all 0.2s ease', '&:hover': { color: currentTheme.colors.primary } }}
-              >
-                {showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </IconButton>
-            </Tooltip>
+          </Box>
+        </Box>
+
+        {/* Always-visible quality section */}
+        <Box sx={{ mb: 3, p: 2, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+              Quality
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={audioOnly}
+                  onChange={(e) => setAudioOnly(e.target.checked)}
+                  size="small"
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.primary },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.primary },
+                  }}
+                />
+              }
+              label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>Audio Only</Typography>}
+              sx={{ m: 0 }}
+            />
+          </Box>
+
+          {audioOnly ? (
+            <FormControl fullWidth sx={{ mt: 1.5 }}>
+              <InputLabel>Audio Format</InputLabel>
+              <Select value={format} label="Audio Format" onChange={(e) => setFormat(e.target.value)}>
+                {qualityPresets.audio.map((preset) => (
+                  <MenuItem key={preset.value} value={preset.value}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{preset.label}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{preset.description}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <FormControl fullWidth sx={{ mt: 1.5 }}>
+              <InputLabel>Video Quality</InputLabel>
+              <Select value={quality} label="Video Quality" onChange={(e) => setQuality(e.target.value)}>
+                {qualityPresets.video.map((preset) => (
+                  <MenuItem key={preset.value} value={preset.value}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{preset.label}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{preset.description}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 1 }}>
+            <Button
+              size="small"
+              variant="text"
+              startIcon={showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              sx={{ color: 'text.secondary', textTransform: 'none', '&:hover': { color: currentTheme.colors.primary } }}
+            >
+              {showAdvanced ? 'Hide options' : 'Show options'}
+            </Button>
           </Box>
         </Box>
 
@@ -576,50 +648,6 @@ const DownloadForm: React.FC = () => {
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Options
             </Typography>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={audioOnly}
-                  onChange={(e) => setAudioOnly(e.target.checked)}
-                  sx={{
-                    '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.primary },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.primary },
-                  }}
-                />
-              }
-              label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Audio Only</Typography>}
-            />
-
-            {audioOnly ? (
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <InputLabel>Audio Format</InputLabel>
-                <Select value={format} label="Audio Format" onChange={(e) => setFormat(e.target.value)}>
-                  {qualityPresets.audio.map((preset) => (
-                    <MenuItem key={preset.value} value={preset.value}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{preset.label}</Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{preset.description}</Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            ) : (
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <InputLabel>Video Quality</InputLabel>
-                <Select value={quality} label="Video Quality" onChange={(e) => setQuality(e.target.value)}>
-                  {qualityPresets.video.map((preset) => (
-                    <MenuItem key={preset.value} value={preset.value}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{preset.label}</Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{preset.description}</Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
 
             <Divider sx={{ my: 2.5, borderColor: currentTheme.colors.border }} />
 
@@ -818,7 +846,15 @@ const DownloadForm: React.FC = () => {
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.success}15`, border: `1px solid ${currentTheme.colors.success}33` }}>
+          <Alert
+            severity="success"
+            sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.success}15`, border: `1px solid ${currentTheme.colors.success}33` }}
+            action={
+              <IconButton aria-label="close" size="small" onClick={() => setSuccess('')} sx={{ color: 'inherit' }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            }
+          >
             {success}
           </Alert>
         )}

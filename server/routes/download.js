@@ -1,9 +1,14 @@
 const express = require('express');
-const { spawn, exec, execSync } = require('child_process');
+const { spawn, exec, execSync, spawnSync } = require('child_process');
 const path = require('path');
+const os = require('os');
 const fs = require('fs-extra');
 const router = express.Router();
 const state = require('../state');
+
+const DOWNLOAD_FOLDER = 'Seal downloads';
+const VIDEO_SUBFOLDER = 'Video';
+const AUDIO_SUBFOLDER = 'Audio';
 
 const DANGEROUS_FLAGS = [
   '--rm', '--exec', '--run', '--power-shell',
@@ -21,6 +26,102 @@ const loadConfig = () => {
 
 const saveConfig = (config) => {
   fs.writeJsonSync(CONFIG_PATH, config, { spaces: 2 });
+};
+
+const getDownloadsDir = () => {
+  const config = loadConfig();
+  if (config.downloadsDir && config.downloadsDir.trim()) {
+    return config.downloadsDir.trim();
+  }
+  return path.join(os.homedir(), 'Downloads', DOWNLOAD_FOLDER);
+};
+
+const getOutDir = (audioOnly) => {
+  return path.join(getDownloadsDir(), audioOnly ? AUDIO_SUBFOLDER : VIDEO_SUBFOLDER);
+};
+
+const sizeToBytes = (s) => {
+  const m = /^([\d.]+)\s*([KMG]i?B|B)$/i.exec((s || '').trim());
+  if (!m) return null;
+  const value = parseFloat(m[1]);
+  const unit = m[2].toUpperCase();
+  const mult = {
+    B: 1,
+    KB: 1024, KIB: 1024,
+    MB: 1024 ** 2, MIB: 1024 ** 2,
+    GB: 1024 ** 3, GIB: 1024 ** 3,
+  }[unit];
+  return mult ? Math.round(value * mult) : null;
+};
+
+const bytesToSize = (bytes) => {
+  if (bytes == null || bytes < 0) return null;
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+  let v = bytes;
+  let u = 0;
+  while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
+  return `${v.toFixed(v >= 10 || u === 0 ? 0 : 2)} ${units[u]}`;
+};
+
+// Estimated bitrate (bps) used to predict the size of the final re-encoded
+// audio file before we download it. yt-dlp only reports the size of the
+// SOURCE stream while downloading, so for audio-only jobs we estimate the
+// output size up front. It is corrected to the real file size on completion.
+const AUDIO_FORMAT_BITRATE_BPS = {
+  mp3: 192000,
+  m4a: 192000,
+  ogg: 192000,
+  wav: 1411200, // ~44.1kHz / 16-bit / stereo
+  flac: 900000,
+};
+
+// Estimate the size of the final re-encoded audio file before download.
+// probedAbr is yt-dlp's average audio bitrate in kilobits per second (kbps).
+const estimateAudioSize = (format, durationSeconds, probedAbrKbps) => {
+  if (!durationSeconds || durationSeconds <= 0) return null;
+  // Prefer the content's real average audio bitrate — the final file for both
+  // lossy re-encodes and lossless/FLAC/WAV outputs tracks it closely. Falls
+  // back to a per-format default only when the probe couldn't report a rate.
+  let bps = probedAbrKbps && probedAbrKbps > 0 ? Math.round(probedAbrKbps * 1000) : undefined;
+  if (!bps) {
+    bps = AUDIO_FORMAT_BITRATE_BPS[format] || 160000;
+  }
+  return Math.round((bps * durationSeconds) / 8);
+};
+
+// Probe a URL for the duration (seconds) and average audio bitrate (KILO-bits
+// per second, as reported by yt-dlp's %(abr)s) WITHOUT downloading anything,
+// so we can estimate the final audio file size. Uses the same cookies/headers
+// as the real download so it succeeds for the same (age-restricted / login)
+// content the user is actually trying to grab.
+const probeAudioMetadata = (url) => {
+  const args = [
+    '--no-playlist', '--no-warnings', '--quiet',
+    '--print', '%(duration)s',
+    '--print', '%(abr)s',
+    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    '--add-header', 'Accept-Language:en-US,en;q=0.9',
+  ];
+  const config = loadConfig();
+  if (config.cookieFilePath) {
+    args.push('--cookies', config.cookieFilePath);
+  } else if (config.cookieBrowser) {
+    args.push('--cookies-from-browser', config.cookieBrowser);
+  }
+  args.push(url);
+
+  try {
+    const result = spawnSync('yt-dlp', args, {
+      encoding: 'utf8', timeout: 15000, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const output = (result.stdout || '') + (result.stderr || '');
+    const lines = output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const duration = parseInt(lines[0], 10);
+    const abr = parseFloat(lines[1]);
+    return { duration: Number.isNaN(duration) ? 0 : duration, abr: Number.isNaN(abr) ? 0 : abr };
+  } catch {
+    return { duration: 0, abr: 0 };
+  }
 };
 
 const parseCustomArgs = (argString) => {
@@ -88,6 +189,56 @@ const removeFromResumable = (id) => {
   return false;
 };
 
+// Remove every partial/output file belonging to a cancelled job.
+// For the job's outDir this deletes:
+//   - the exact final filename (if known)
+//   - any `<name>.part` / `<name>.ytdl` variants of that filename
+//   - any fresh `.part`/`.ytdl` files created after the job started
+//     (handles the case where the Destination filename was never parsed yet,
+//      while never touching other concurrent downloads in the same folder)
+const cleanupCancelledFiles = async (job) => {
+  if (!job) return;
+  const outDir = job.outDir || getOutDir(false);
+  let entries;
+  try {
+    entries = await fs.readdir(outDir, { withFileTypes: true });
+  } catch {
+    return; // folder missing/removed — nothing to clean
+  }
+
+  const startedAt = job.startedAt || 0;
+  const knownName = (job.info && job.info.filename) || '';
+  const expected = knownName
+    ? new Set([knownName, knownName + '.part', knownName + '.ytdl'])
+    : null;
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const name = entry.name;
+    const lower = name.toLowerCase();
+
+    const isPartVariant = lower.endsWith('.part') || lower.endsWith('.ytdl');
+
+    if (expected && expected.has(name)) {
+      // Exact known filename or its .part/.ytdl variant — always safe to remove.
+      try { await fs.remove(path.join(outDir, name)); } catch {}
+      continue;
+    }
+
+    if (isPartVariant && startedAt) {
+      // Fresh partial remnant for an unknown filename. Only remove if it was
+      // created at/after this job started, and never the final output file.
+      try {
+        const stats = await fs.stat(path.join(outDir, name));
+        if (!stats.isFile()) continue;
+        if (stats.mtimeMs + 500 >= startedAt) {
+          await fs.remove(path.join(outDir, name));
+        }
+      } catch {}
+    }
+  }
+};
+
 // Rehydrate on server boot: requeue pending jobs and resume interrupted downloads.
 const rehydrate = (io) => {
   const { queued, active, resumable: persistedResumable } = state.load();
@@ -105,7 +256,7 @@ const rehydrate = (io) => {
       playlistTotal: job.playlistTotal, totalSize: '', speed: '', eta: '', downloadedSize: '',
     };
     restored.push({ type: 'active', id: job.id, url: job.url, playlistId: job.playlistId, filename: job.filename });
-    const fullJob = { id: job.id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, io, info, startedAt: job.startedAt };
+    const fullJob = { id: job.id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, outDir: job.outDir, io, info, startedAt: job.startedAt };
     if (activeCount < loadConfig().maxConcurrentDownloads) {
       activeCount++;
       startDownload(fullJob);
@@ -158,8 +309,14 @@ const startDownload = (job) => {
         info.status = 'downloading';
       }
 
-      const sizeMatch = output.match(/of\s+~?([\d.]+\s*[KMG]iB)/i);
-      if (sizeMatch) info.totalSize = sizeMatch[1];
+      const sizeMatch = output.match(/of\s+~?\s*([\d.]+\s*[KMG]iB)/i);
+      if (sizeMatch && !info.totalSizeFixed) {
+        const bytes = sizeToBytes(sizeMatch[1]);
+        if (bytes != null && bytes > (info.totalSizeBytes || 0)) {
+          info.totalSizeBytes = bytes;
+        }
+        if (info.totalSizeBytes) info.totalSize = bytesToSize(info.totalSizeBytes);
+      }
 
       const speedMatch = output.match(/at\s+([\d.]+\s*[KMG]iB\/s)/i);
       if (speedMatch) info.speed = speedMatch[1];
@@ -184,6 +341,13 @@ const startDownload = (job) => {
     if (filenameMatch) {
       info.filename = path.basename(filenameMatch[1]);
     }
+    // For audio-only jobs, yt-dlp prints the final extracted file here once
+    // ffmpeg finishes. We remember its path so we can correct the estimated
+    // size to the file's real size when the download completes.
+    const extractAudioMatch = output.match(/\[ExtractAudio\] Destination: (.+)/);
+    if (extractAudioMatch) {
+      info.audioFilePath = extractAudioMatch[1].trim();
+    }
   };
 
   ytdlp.stdout.on('data', (data) => {
@@ -200,7 +364,7 @@ const startDownload = (job) => {
     info.stderr = (info.stderr || '') + data.toString();
   });
 
-  ytdlp.on('close', (code) => {
+  ytdlp.on('close', async (code) => {
     if (stdoutBuffer.trim()) processLine(stdoutBuffer.trim());
     activeProcesses.delete(id);
     activeCount--;
@@ -208,6 +372,17 @@ const startDownload = (job) => {
       info.status = 'completed';
       info.progress = 100;
       removeFromResumable(id);
+      // Correct a (previously estimated) audio size to the real file size now
+      // that the extracted audio file exists on disk.
+      if (info.audioFilePath) {
+        try {
+          const stats = await fs.stat(info.audioFilePath);
+          if (stats.isFile()) {
+            info.totalSize = bytesToSize(stats.size);
+            info.totalSizeEstimated = false;
+          }
+        } catch {}
+      }
       io.emit('download-complete', info);
     } else if (info.status !== 'cancelled') {
       info.status = 'error';
@@ -221,6 +396,8 @@ const startDownload = (job) => {
       io.emit('download-error', info);
     } else {
       removeFromResumable(id);
+      // Process has fully exited — sweep any partial/output files for this job.
+      cleanupCancelledFiles(ytdlp.job);
     }
     saveState();
     processQueue();
@@ -281,7 +458,7 @@ router.post('/cookie-test', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { url, format, quality, audioOnly, outputPath, customArgs, formatId, formatSelector,
-      embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat } = req.body;
+      embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat, expectedSize } = req.body;
     const io = req.app.get('socketio');
 
     if (!url) return res.status(400).json({ error: 'URL is required' });
@@ -294,8 +471,9 @@ router.post('/', async (req, res) => {
       if (!validation.valid) return res.status(400).json({ error: validation.error });
     }
 
-    const downloadsDir = path.join(__dirname, '../../downloads');
-    await fs.ensureDir(downloadsDir);
+    const downloadsDir = getDownloadsDir();
+    const outDir = getOutDir(!!audioOnly);
+    await fs.ensureDir(outDir);
 
     const args = [];
     args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
@@ -355,12 +533,46 @@ router.post('/', async (req, res) => {
       if (subFormat) args.push('--sub-format', subFormat);
     }
 
-    args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
+    args.push('-o', path.join(outDir, '%(title)s.%(ext)s'));
     args.push('--no-playlist');
     args.push('--progress');
 
     const downloadId = Date.now().toString();
-    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null, stderr: '', totalSize: '', speed: '', eta: '', downloadedSize: '' };
+    const info = { id: downloadId, url, status: 'queued', progress: 0, filename: '', error: null, stderr: '', totalSize: '', totalSizeEstimated: false, audioFilePath: '', speed: '', eta: '', downloadedSize: '' };
+
+    // When the user picked a specific format in the Get Info panel, seed the
+    // displayed total with that format's True size so HLS fragment estimates
+    // never inflate/overshoot it. Frozen for the whole download.
+    // NOTE: For audio-only jobs this is intentionally skipped — a user may have
+    // a VIDEO format selected from Get Info, and using its size here would show
+    // the video's size instead of the audio file we actually produce.
+    if (!audioOnly && expectedSize && expectedSize > 0) {
+      info.totalSizeBytes = expectedSize;
+      info.totalSize = bytesToSize(expectedSize);
+      info.totalSizeFixed = true;
+    }
+
+    // For audio-only jobs estimate the size of the FINAL re-encoded audio file
+    // (e.g. the MP3/FLAC we'll produce). yt-dlp only reports the source stream
+    // size while downloading, so seed the total with an estimate based on
+    // duration + bitrate. It is corrected to the real file size in
+    // startDownload when extraction completes.
+    if (audioOnly) {
+      // Never display the SOURCE stream / selected-video size for an audio
+      // download — that's not the size of the audio file we produce. Freeze
+      // the total so the progress lines can't overwrite it, and show nothing
+      // (or an estimate) instead.
+      info.totalSizeFixed = true;
+      const probe = probeAudioMetadata(url);
+      const estimated = estimateAudioSize(format, probe.duration, probe.abr);
+      console.log(`[AUDIO-EST] url=${url} format=${format} probe=${JSON.stringify(probe)} estimated=${estimated} -> ${estimated ? bytesToSize(estimated) : null}`);
+      if (estimated && estimated > 0) {
+        info.totalSizeBytes = estimated;
+        info.totalSize = bytesToSize(estimated);
+        info.totalSizeEstimated = true;
+      }
+      console.log(`[AUDIO-EST] resulting totalSize="${info.totalSize}" est=${info.totalSizeEstimated} fixed=${info.totalSizeFixed}`);
+    }
 
     if (config.downloadSpeedLimit && config.downloadSpeedLimit > 0) {
       args.push('--limit-rate', `${config.downloadSpeedLimit}`);
@@ -370,9 +582,9 @@ router.post('/', async (req, res) => {
     if (activeCount < config.maxConcurrentDownloads) {
       activeCount++;
       io.emit('download-start', { ...info, status: 'starting' });
-      startDownload({ id: downloadId, url, args, downloadsDir, io, info });
+      startDownload({ id: downloadId, url, args, downloadsDir, outDir, io, info });
     } else {
-      queue.push({ id: downloadId, url, args, downloadsDir, io, info });
+      queue.push({ id: downloadId, url, args, downloadsDir, outDir, io, info });
       saveState();
     }
 
@@ -399,8 +611,9 @@ router.post('/playlist', async (req, res) => {
       if (!urlPattern.test(u)) return res.status(400).json({ error: `Invalid URL: ${u}` });
     }
 
-    const downloadsDir = path.join(__dirname, '../../downloads');
-    await fs.ensureDir(downloadsDir);
+    const downloadsDir = getDownloadsDir();
+    const outDir = getOutDir(!!audioOnly);
+    await fs.ensureDir(outDir);
 
     const playlistId = `pl-${Date.now()}`;
     io.emit('playlist-start', { playlistId, total: urls.length });
@@ -444,7 +657,7 @@ router.post('/playlist', async (req, res) => {
         if (subFormat) args.push('--sub-format', subFormat);
       }
 
-      args.push('-o', path.join(downloadsDir, '%(title)s.%(ext)s'));
+      args.push('-o', path.join(outDir, '%(title)s.%(ext)s'));
       args.push('--no-playlist');
       args.push('--progress');
 
@@ -457,14 +670,15 @@ router.post('/playlist', async (req, res) => {
       const info = {
         id: downloadId, url, status: 'queued', progress: 0, filename: '',
         error: null, stderr: '', playlistId, playlistIndex: index, playlistTotal: urls.length,
-        totalSize: '', speed: '', eta: '', downloadedSize: '',
+        totalSize: '', totalSizeEstimated: false, totalSizeFixed: !!audioOnly, audioFilePath: '',
+        speed: '', eta: '', downloadedSize: '',
       };
 
       if (activeCount < config.maxConcurrentDownloads) {
         activeCount++;
-        startDownload({ id: downloadId, url, args, downloadsDir, io, info });
+        startDownload({ id: downloadId, url, args, downloadsDir, outDir, io, info });
       } else {
-        queue.push({ id: downloadId, url, args, downloadsDir, io, info });
+        queue.push({ id: downloadId, url, args, downloadsDir, outDir, io, info });
         saveState();
       }
     });
@@ -488,12 +702,9 @@ router.delete('/cancel/:id', (req, res) => {
   if (proc) {
     console.log(`[CANCEL] Killing active process ${id} (pid: ${proc.pid}, filename: ${proc.info.filename || 'unknown'})`);
     proc.info.status = 'cancelled';
-    const downloadsDir = path.join(__dirname, '../../downloads');
-    if (proc.info.filename) {
-      fs.remove(path.join(downloadsDir, proc.info.filename)).catch(() => {});
-      fs.remove(path.join(downloadsDir, proc.info.filename + '.part')).catch(() => {});
-    }
-    // Kill the whole process tree (yt-dlp + any orphaned ffmpeg helpers it spawned)
+    // For the active process we kill the tree, then the `close` handler sweeps
+    // all its .part/output files (safer — nothing is mid-write once the
+    // process has actually exited).
     if (process.platform === 'win32') {
       exec(`taskkill /pid ${proc.pid} /T /F`, () => {});
     } else {
@@ -537,6 +748,7 @@ router.get('/queue', (req, res) => {
     downloadSpeedLimit: config.downloadSpeedLimit || 0,
     cookieBrowser: config.cookieBrowser || '',
     cookieFilePath: config.cookieFilePath || '',
+    downloadsDir: getDownloadsDir(),
     activeCount,
     queueLength: queue.length,
     queued: queue.map((j) => ({ id: j.id, url: j.url, info: j.info })),
@@ -580,10 +792,10 @@ router.post('/resume', (req, res) => {
   let queued = false;
   if (activeCount < config.maxConcurrentDownloads) {
     activeCount++;
-    startDownload({ id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, io, info });
+    startDownload({ id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, outDir: job.outDir, io, info });
   } else {
     queued = true;
-    queue.push({ id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, io, info });
+    queue.push({ id, url: job.url, args: job.args, downloadsDir: job.downloadsDir, outDir: job.outDir, io, info });
   }
 
   saveState();
@@ -592,7 +804,7 @@ router.post('/resume', (req, res) => {
 
 // PUT /api/download/queue/settings
 router.put('/queue/settings', (req, res) => {
-  const { maxConcurrentDownloads, downloadSpeedLimit, cookieBrowser, cookieFilePath } = req.body;
+  const { maxConcurrentDownloads, downloadSpeedLimit, cookieBrowser, cookieFilePath, downloadsDir } = req.body;
   if (!maxConcurrentDownloads || maxConcurrentDownloads < 1 || maxConcurrentDownloads > 10) {
     return res.status(400).json({ error: 'maxConcurrentDownloads must be between 1 and 10' });
   }
@@ -603,27 +815,35 @@ router.put('/queue/settings', (req, res) => {
   if (cookieBrowser !== undefined && !validBrowsers.includes(cookieBrowser)) {
     return res.status(400).json({ error: `cookieBrowser must be one of: ${validBrowsers.filter(b => b).join(', ')}` });
   }
+  if (downloadsDir !== undefined && (typeof downloadsDir !== 'string' || downloadsDir.length > 1000)) {
+    return res.status(400).json({ error: 'downloadsDir must be a valid path string' });
+  }
   const config = loadConfig();
   config.maxConcurrentDownloads = maxConcurrentDownloads;
   config.downloadSpeedLimit = downloadSpeedLimit ?? config.downloadSpeedLimit ?? 0;
   if (cookieBrowser !== undefined) config.cookieBrowser = cookieBrowser;
   if (cookieFilePath !== undefined) config.cookieFilePath = cookieFilePath;
+  if (downloadsDir !== undefined) config.downloadsDir = downloadsDir.trim();
   saveConfig(config);
   processQueue();
-  res.json({ success: true, maxConcurrentDownloads, downloadSpeedLimit: config.downloadSpeedLimit, cookieBrowser: config.cookieBrowser, cookieFilePath: config.cookieFilePath });
+  res.json({ success: true, maxConcurrentDownloads, downloadSpeedLimit: config.downloadSpeedLimit, cookieBrowser: config.cookieBrowser, cookieFilePath: config.cookieFilePath, downloadsDir: getDownloadsDir() });
 });
 
 // GET /api/download/list
 router.get('/list', async (req, res) => {
   try {
-    const downloadsDir = path.join(__dirname, '../../downloads');
-    const entries = await fs.readdir(downloadsDir);
+    const downloadsDir = getDownloadsDir();
     const fileList = [];
-    for (const file of entries) {
-      const filePath = path.join(downloadsDir, file);
-      const stats = await fs.stat(filePath);
-      if (stats.isFile()) {
-        fileList.push({ name: file, size: stats.size, createdAt: stats.birthtime, modifiedAt: stats.mtime });
+    for (const folder of [VIDEO_SUBFOLDER, AUDIO_SUBFOLDER]) {
+      const folderPath = path.join(downloadsDir, folder);
+      await fs.ensureDir(folderPath);
+      const entries = await fs.readdir(folderPath);
+      for (const file of entries) {
+        const filePath = path.join(folderPath, file);
+        const stats = await fs.stat(filePath);
+        if (stats.isFile()) {
+          fileList.push({ name: file, folder, size: stats.size, createdAt: stats.birthtime, modifiedAt: stats.mtime });
+        }
       }
     }
     res.json(fileList);
@@ -632,12 +852,15 @@ router.get('/list', async (req, res) => {
   }
 });
 
-// DELETE /api/download/:filename
+// DELETE /api/download/:filename?folder=Video|Audio
 router.delete('/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(__dirname, '../../downloads', filename);
-    if (!filePath.startsWith(path.join(__dirname, '../../downloads'))) {
+    const folder = req.query.folder === AUDIO_SUBFOLDER ? AUDIO_SUBFOLDER : VIDEO_SUBFOLDER;
+    const downloadsDir = getDownloadsDir();
+    const folderPath = path.join(downloadsDir, folder);
+    const filePath = path.join(folderPath, filename);
+    if (!filePath.startsWith(folderPath + path.sep)) {
       return res.status(400).json({ error: 'Invalid file path' });
     }
     await fs.remove(filePath);
@@ -647,6 +870,7 @@ router.delete('/:filename', async (req, res) => {
   }
 });
 
+router.getDownloadsDir = getDownloadsDir;
 router.rehydrate = rehydrate;
 
 module.exports = router;

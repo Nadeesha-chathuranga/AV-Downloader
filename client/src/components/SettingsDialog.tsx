@@ -27,6 +27,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   OpenInNew as OpenInNewIcon,
+  FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -43,6 +44,7 @@ interface AppSettings {
   downloadSpeedLimit: number;
   cookieBrowser: string;
   cookieFilePath: string;
+  downloadsDir: string;
 }
 
 const SPEED_PRESETS = [
@@ -96,6 +98,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
     downloadSpeedLimit: 0,
     cookieBrowser: '',
     cookieFilePath: '',
+    downloadsDir: '',
   });
   const [speedIndex, setSpeedIndex] = useState(0);
   const [manualInput, setManualInput] = useState('');
@@ -115,6 +118,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
         downloadSpeedLimit: limit,
         cookieBrowser: res.data.cookieBrowser || '',
         cookieFilePath: res.data.cookieFilePath || '',
+        downloadsDir: res.data.downloadsDir || '',
       });
       const idx = getSpeedIndex(limit);
       setSpeedIndex(idx);
@@ -148,6 +152,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
         downloadSpeedLimit: settings.downloadSpeedLimit,
         cookieBrowser: settings.cookieBrowser,
         cookieFilePath: settings.cookieFilePath,
+        downloadsDir: settings.downloadsDir,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -183,8 +188,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
 
   const CHROMIUM_BROWSERS = ['chrome', 'edge', 'brave', 'opera', 'vivaldi'];
 
-  const handleTestCookies = async () => {
-    setCookieTestStatus('testing');
+  const handleTestCookies = async () => {    setCookieTestStatus('testing');
     setCookieTestMsg('');
     try {
       const res = await axios.post(`${apiUrl}/download/cookie-test`, {
@@ -439,6 +443,34 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
               </Box>
             </Box>
           )}
+        </Box>
+
+        <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />
+
+        {/* Download Location Section */}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <FolderOpenIcon sx={{ fontSize: 18, color: currentTheme.colors.primary }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+              Download Location
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', fontSize: '0.85rem' }}>
+            Downloads are saved here. Files are split automatically to <strong>Video</strong> and <strong>Audio</strong>. Default: <strong>C:\Users\You\Downloads\Seal downloads</strong>
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField
+              fullWidth
+              size="small"
+              value={settings.downloadsDir}
+              onChange={(e) => setSettings((prev) => ({ ...prev, downloadsDir: e.target.value }))}
+              placeholder="Paste download location here"
+              sx={{
+                '& .MuiOutlinedInput-root': { height: 40, borderRadius: 0.75, fontSize: '0.85rem' },
+                '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+              }}
+            />
+          </Box>
         </Box>
 
         <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />
