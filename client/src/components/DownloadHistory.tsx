@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -38,36 +38,68 @@ const DownloadHistory: React.FC = () => {
   const [tab, setTab] = useState<'video' | 'audio'>('video');
   const { currentTheme } = useAppTheme();
 
-  const fetchFiles = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  // Monotonic id used to ignore out-of-order poll responses (a slow poll can
+  // otherwise land after a newer one and overwrite fresh state with stale data).
+  const requestSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchFiles = useCallback(async (silent?: boolean) => {
+    const seq = ++requestSeqRef.current;
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    // "silent" (auto-poll) refetches should not flash the loading spinner or
+    // disable the refresh button every cycle.
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
 
     try {
-      const response = await axios.get(`${apiUrl}/download/list`);
-      setFiles(response.data);
+      const response = await axios.get(`${apiUrl}/download/list`, { signal: controller.signal });
+      if (seq === requestSeqRef.current) {
+        setFiles(response.data);
+        setError('');
+      }
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to load download history');
-      setFiles([]);
+      if (error?.code === 'ERR_CANCELED' || controller.signal.aborted) return;
+      if (seq === requestSeqRef.current) {
+        setError(error.response?.data?.error || 'Failed to load download history');
+        setFiles((prev) => prev);
+      }
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current && !silent) setLoading(false);
     }
   }, [apiUrl]);
 
   useEffect(() => {
     fetchFiles();
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, [fetchFiles]);
 
   useEffect(() => {
+    // Only auto-poll while the tab is visible; pause in background tabs.
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') fetchFiles(true);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     const interval = setInterval(() => {
-      fetchFiles();
+      if (document.visibilityState === 'visible') fetchFiles(true);
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, [fetchFiles]);
 
   const deleteFile = async (filename: string, folder?: string) => {
     try {
       await axios.delete(`${apiUrl}/download/${encodeURIComponent(filename)}${folder ? `?folder=${folder}` : ''}`);
-      setFiles(files.filter((file) => file.name !== filename));
+      // Use a functional update so a concurrent poll can't clobber the removal.
+      setFiles((prev) => prev.filter((file) => file.name !== filename));
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to delete file');
     }
@@ -231,7 +263,7 @@ const DownloadHistory: React.FC = () => {
             </Box>
             <Tooltip title="Refresh">
               <IconButton
-                onClick={fetchFiles}
+                onClick={() => fetchFiles()}
                 disabled={loading}
                 sx={{
                   color: 'text.secondary',

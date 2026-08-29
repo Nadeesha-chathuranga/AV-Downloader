@@ -1,5 +1,5 @@
 const express = require('express');
-const { spawn, exec, execSync, spawnSync } = require('child_process');
+const { spawn, exec } = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs-extra');
@@ -13,6 +13,10 @@ const AUDIO_SUBFOLDER = 'Audio';
 const DANGEROUS_FLAGS = [
   '--rm', '--exec', '--run', '--power-shell',
   '--batch-file', '--delete',
+  // Output-path controls are deliberately blocked: the server owns the output
+  // location (-o is set by the route). Allowing a user-supplied -o/--paths
+  // would permit arbitrary file writes anywhere on disk.
+  '--output', '--paths', '--path', '-o',
 ];
 
 const CONFIG_PATH = path.join(__dirname, '../config.json');
@@ -89,12 +93,25 @@ const estimateAudioSize = (format, durationSeconds, probedAbrKbps) => {
   return Math.round((bps * durationSeconds) / 8);
 };
 
+// Small per-URL cache for probe results so repeat downloads of the same video
+// skip the (network-hitting) metadata probe. Keyed by duration; entries expire
+// so a re-download after a while re-probes fresh.
+const probeCache = new Map();
+const PROBE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 // Probe a URL for the duration (seconds) and average audio bitrate (KILO-bits
 // per second, as reported by yt-dlp's %(abr)s) WITHOUT downloading anything,
-// so we can estimate the final audio file size. Uses the same cookies/headers
-// as the real download so it succeeds for the same (age-restricted / login)
-// content the user is actually trying to grab.
-const probeAudioMetadata = (url) => {
+// so we can estimate the final audio file size. Async and non-blocking so a
+// slow probe never freezes the event loop / other downloads. Uses the same
+// cookies/headers as the real download so it succeeds for the same
+// (age-restricted / login) content the user is actually trying to grab.
+const probeAudioMetadata = async (url) => {
+  const cached = probeCache.get(url);
+  if (cached && Date.now() - cached.at < PROBE_TTL_MS) {
+    return cached.data;
+  }
+  probeCache.delete(url);
+
   const args = [
     '--no-playlist', '--no-warnings', '--quiet',
     '--print', '%(duration)s',
@@ -111,14 +128,29 @@ const probeAudioMetadata = (url) => {
   args.push(url);
 
   try {
-    const result = spawnSync('yt-dlp', args, {
-      encoding: 'utf8', timeout: 15000, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    const result = await new Promise((resolve, reject) => {
+      const proc = spawn('yt-dlp', args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      proc.stdout.on('data', (d) => { out += d.toString(); });
+      proc.stderr.on('data', (d) => { out += d.toString(); });
+      const timer = setTimeout(() => { proc.kill(); reject(new Error('Probe timed out')); }, 15000);
+      proc.on('error', (err) => { clearTimeout(timer); reject(err); });
+      proc.on('close', (code) => {
+        clearTimeout(timer);
+        if (code === 0) resolve(out);
+        else reject(new Error(`Probe exited with code ${code}`));
+      });
     });
-    const output = (result.stdout || '') + (result.stderr || '');
-    const lines = output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+    const lines = result.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const duration = parseInt(lines[0], 10);
     const abr = parseFloat(lines[1]);
-    return { duration: Number.isNaN(duration) ? 0 : duration, abr: Number.isNaN(abr) ? 0 : abr };
+    const data = {
+      duration: Number.isNaN(duration) ? 0 : duration,
+      abr: Number.isNaN(abr) ? 0 : abr,
+    };
+    probeCache.set(url, { at: Date.now(), data });
+    return data;
   } catch {
     return { duration: 0, abr: 0 };
   }
@@ -149,6 +181,18 @@ const parseCustomArgs = (argString) => {
 };
 
 const validateCustomArgs = (argString) => {
+  // Tokenize exactly as parseCustomArgs does, so short flags like -o / -P are
+  // also caught (the long-form regex alone would miss them).
+  const tokens = parseCustomArgs(argString);
+  const dangerous = new Set(['-o', '-P', '--path', ...DANGEROUS_FLAGS.map((f) => f.toLowerCase())]);
+  for (const token of tokens) {
+    const lower = token.toLowerCase();
+    // Catch "--output=..." (a flag with an inline value) as well as "-o" alone.
+    const flagPart = lower.split(/[= ]/)[0];
+    if (dangerous.has(flagPart)) {
+      return { valid: false, error: `Blocked dangerous flag: ${token}` };
+    }
+  }
   const flagged = argString.match(/--[a-zA-Z-]+/g) || [];
   for (const flag of flagged) {
     if (DANGEROUS_FLAGS.includes(flag.toLowerCase())) {
@@ -301,6 +345,7 @@ const startDownload = (job) => {
 
   let stdoutBuffer = '';
   let lastLoggedPercent = -1;
+  let lastProgressEmit = 0;
   const processLine = (output) => {
     const progressMatch = output.match(/(\d+\.?\d*)%/);
     if (progressMatch) {
@@ -327,7 +372,14 @@ const startDownload = (job) => {
       const downloadedMatch = output.match(/\[download\]\s+([\d.]+\s*[KMG]iB)/i);
       if (downloadedMatch) info.downloadedSize = downloadedMatch[1];
 
-      io.emit('download-progress', { ...info });
+      // Always update `info` above so the final state is correct, but throttle
+      // the socket push to ~4/sec so a burst of progress lines (or many
+      // concurrent downloads) doesn't flood clients with near-identical events.
+      const now = Date.now();
+      if (now - lastProgressEmit >= 250) {
+        lastProgressEmit = now;
+        io.emit('download-progress', { ...info });
+      }
 
       const wholePercent = Math.floor(info.progress);
       if (wholePercent !== lastLoggedPercent) {
@@ -350,6 +402,22 @@ const startDownload = (job) => {
     }
   };
 
+  // If the process can't be spawned (or is killed externally) Node emits
+  // 'error'. Without a listener this would crash the whole server and leave
+  // the download marked active forever (activeCount never decremented), which
+  // would wedge the queue. Mirror the cleanup we do in 'close' so the job is
+  // marked errored and the next queued job can run.
+  ytdlp.on('error', (err) => {
+    activeProcesses.delete(id);
+    activeCount = Math.max(0, activeCount - 1);
+    info.status = 'error';
+    info.error = err.message || 'Failed to start download process';
+    removeFromResumable(id);
+    io.emit('download-error', info);
+    saveState();
+    processQueue();
+  });
+
   ytdlp.stdout.on('data', (data) => {
     stdoutBuffer += data.toString();
     const lines = stdoutBuffer.split(/[\r\n]+/);
@@ -361,7 +429,9 @@ const startDownload = (job) => {
   });
 
   ytdlp.stderr.on('data', (data) => {
-    info.stderr = (info.stderr || '') + data.toString();
+    // Bound retained stderr so a verbose/long run (and the state.json it is
+    // serialized into) can't grow without limit.
+    info.stderr = ((info.stderr || '') + data.toString()).slice(-4096);
   });
 
   ytdlp.on('close', async (code) => {
@@ -393,6 +463,12 @@ const startDownload = (job) => {
         status: 'failed',
         filename: info.filename || '',
       });
+      // Cap the resumable list so repeated failures can't grow it (and
+      // state.json) without bound. Oldest entries are dropped first.
+      const MAX_RESUMABLE = 50;
+      if (resumable.length > MAX_RESUMABLE) {
+        resumable.splice(0, resumable.length - MAX_RESUMABLE);
+      }
       io.emit('download-error', info);
     } else {
       removeFromResumable(id);
@@ -405,8 +481,12 @@ const startDownload = (job) => {
 };
 
 // GET /api/download/browsers — detect installed browsers on Windows
-router.get('/browsers', (req, res) => {
-  const browsers = [];
+// Async + parallel (instead of sequential blocking execSync, which could stall
+// the event loop for seconds) and cached briefly since the result rarely changes.
+const browserCache = { at: 0, list: [] };
+const detectBrowsers = async () => {
+  const now = Date.now();
+  if (now - browserCache.at < 60000) return browserCache.list; // 60s cache
   const registryKeys = {
     chrome: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe',
     edge: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\msedge.exe',
@@ -415,13 +495,34 @@ router.get('/browsers', (req, res) => {
     opera: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\opera.exe',
     vivaldi: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\vivaldi.exe',
   };
-  for (const [name, regKey] of Object.entries(registryKeys)) {
-    try {
-      const result = execSync(`reg query "${regKey}" /ve 2>nul`, { encoding: 'utf-8', timeout: 3000 });
-      if (result.includes('REG_SZ')) browsers.push(name);
-    } catch {}
+  const results = await Promise.all(
+    Object.entries(registryKeys).map(async ([name, regKey]) => {
+      try {
+        const { stdout } = await new Promise((resolve, reject) => {
+          exec(`reg query "${regKey}" /ve`, { encoding: 'utf-8', timeout: 3000, windowsHide: true }, (err, stdout) => {
+            if (err) reject(err);
+            else resolve({ stdout });
+          });
+        });
+        return stdout.includes('REG_SZ') ? name : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  const list = results.filter(Boolean);
+  browserCache.at = now;
+  browserCache.list = list;
+  return list;
+};
+
+router.get('/browsers', async (req, res) => {
+  try {
+    const browsers = await detectBrowsers();
+    res.json({ browsers });
+  } catch {
+    res.json({ browsers: [] });
   }
-  res.json({ browsers });
 });
 
 // POST /api/download/cookie-test — test cookie configuration
@@ -457,14 +558,11 @@ router.post('/cookie-test', async (req, res) => {
 // POST /api/download
 router.post('/', async (req, res) => {
   try {
-    const { url, format, quality, audioOnly, outputPath, customArgs, formatId, formatSelector,
+    const { url, format, quality, audioOnly, customArgs, formatId, formatSelector,
       embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat, expectedSize } = req.body;
     const io = req.app.get('socketio');
 
     if (!url) return res.status(400).json({ error: 'URL is required' });
-
-    const urlPattern = /^https?:\/\/.+/i;
-    if (!urlPattern.test(url)) return res.status(400).json({ error: 'Invalid URL format.' });
 
     if (customArgs) {
       const validation = validateCustomArgs(customArgs);
@@ -563,15 +661,13 @@ router.post('/', async (req, res) => {
       // the total so the progress lines can't overwrite it, and show nothing
       // (or an estimate) instead.
       info.totalSizeFixed = true;
-      const probe = probeAudioMetadata(url);
+      const probe = await probeAudioMetadata(url);
       const estimated = estimateAudioSize(format, probe.duration, probe.abr);
-      console.log(`[AUDIO-EST] url=${url} format=${format} probe=${JSON.stringify(probe)} estimated=${estimated} -> ${estimated ? bytesToSize(estimated) : null}`);
       if (estimated && estimated > 0) {
         info.totalSizeBytes = estimated;
         info.totalSize = bytesToSize(estimated);
         info.totalSizeEstimated = true;
       }
-      console.log(`[AUDIO-EST] resulting totalSize="${info.totalSize}" est=${info.totalSizeEstimated} fixed=${info.totalSizeFixed}`);
     }
 
     if (config.downloadSpeedLimit && config.downloadSpeedLimit > 0) {
@@ -581,7 +677,7 @@ router.post('/', async (req, res) => {
 
     if (activeCount < config.maxConcurrentDownloads) {
       activeCount++;
-      io.emit('download-start', { ...info, status: 'starting' });
+      // startDownload() emits 'download-start' itself — don't emit it again here.
       startDownload({ id: downloadId, url, args, downloadsDir, outDir, io, info });
     } else {
       queue.push({ id: downloadId, url, args, downloadsDir, outDir, io, info });
@@ -606,11 +702,6 @@ router.post('/playlist', async (req, res) => {
       return res.status(400).json({ error: 'urls array is required' });
     }
 
-    const urlPattern = /^https?:\/\/.+/i;
-    for (const u of urls) {
-      if (!urlPattern.test(u)) return res.status(400).json({ error: `Invalid URL: ${u}` });
-    }
-
     const downloadsDir = getDownloadsDir();
     const outDir = getOutDir(!!audioOnly);
     await fs.ensureDir(outDir);
@@ -618,12 +709,15 @@ router.post('/playlist', async (req, res) => {
     const playlistId = `pl-${Date.now()}`;
     io.emit('playlist-start', { playlistId, total: urls.length });
 
+    // Load config ONCE before the loop. Reading it per-item (a sync disk read
+    // per URL) made large playlists O(N²) and blocked the event loop.
+    const config = loadConfig();
+
     urls.forEach((url, index) => {
       const args = [];
       args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
       args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
 
-      const config = loadConfig();
       if (config.cookieFilePath) {
         args.push('--cookies', config.cookieFilePath);
       } else if (config.cookieBrowser) {
@@ -679,9 +773,10 @@ router.post('/playlist', async (req, res) => {
         startDownload({ id: downloadId, url, args, downloadsDir, outDir, io, info });
       } else {
         queue.push({ id: downloadId, url, args, downloadsDir, outDir, io, info });
-        saveState();
       }
     });
+    // Persist the whole (potentially large) queue ONCE after the loop, instead
+    // of serializing + writing the full queue for every single item (O(N²)).
     saveState();
 
     res.json({ success: true, playlistId, total: urls.length, message: `Playlist download started: ${urls.length} videos queued` });
@@ -865,10 +960,24 @@ router.delete('/:filename', async (req, res) => {
     const { filename } = req.params;
     const folder = req.query.folder === AUDIO_SUBFOLDER ? AUDIO_SUBFOLDER : VIDEO_SUBFOLDER;
     const downloadsDir = getDownloadsDir();
-    const folderPath = path.join(downloadsDir, folder);
-    const filePath = path.join(folderPath, filename);
-    if (!filePath.startsWith(folderPath + path.sep)) {
+    const folderPath = path.resolve(path.join(downloadsDir, folder));
+    // resolve() normalises any ../ so a crafted filename can't escape the
+    // target folder; we then require the resolved path to sit strictly inside
+    // it. The old plain startsWith(folderPath + sep) check could be bypassed
+    // by a sibling-prefix path (e.g. "...\Video_evil") — resolve() fixes that.
+    const filePath = path.resolve(path.join(folderPath, filename));
+    if (filePath !== folderPath && !filePath.startsWith(folderPath + path.sep)) {
       return res.status(400).json({ error: 'Invalid file path' });
+    }
+    // Only delete regular files — never directories.
+    let stats;
+    try {
+      stats = await fs.stat(filePath);
+    } catch {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    if (!stats.isFile()) {
+      return res.status(400).json({ error: 'Can only delete files' });
     }
     await fs.remove(filePath);
     res.json({ success: true, message: 'File deleted successfully' });
@@ -879,5 +988,22 @@ router.delete('/:filename', async (req, res) => {
 
 router.getDownloadsDir = getDownloadsDir;
 router.rehydrate = rehydrate;
+
+// Terminate every in-flight yt-dlp/ffmpeg child process. Called from index.js
+// when the server is shutting down so downloads don't keep running (and keep
+// writing files) as orphaned processes after the server exits. On Windows we
+// taskkill the whole tree (yt-dlp spawns ffmpeg as a child) so nothing lingers.
+router.shutdown = () => {
+  for (const proc of activeProcesses.values()) {
+    if (!proc || !proc.pid) continue;
+    if (process.platform === 'win32') {
+      exec(`taskkill /pid ${proc.pid} /T /F`, () => {});
+    } else {
+      try { proc.kill('SIGTERM'); } catch {}
+    }
+  }
+  activeProcesses.clear();
+  queue.length = 0;
+};
 
 module.exports = router;

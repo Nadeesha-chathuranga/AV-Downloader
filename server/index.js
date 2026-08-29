@@ -99,6 +99,21 @@ if (typeof downloadRouter.rehydrate === 'function') {
 // Export io for use in routes
 app.set('socketio', io);
 
+// Graceful shutdown: kill any in-flight yt-dlp/ffmpeg child processes so they
+// don't keep running after the server exits (they would otherwise continue to
+// write files and consume CPU/network as orphans). Then close the HTTP server
+// and socket connections before letting the process exit.
+const shutdown = () => {
+  console.log('Shutting down — terminating in-flight downloads...');
+  if (typeof downloadRouter.shutdown === 'function') {
+    try { downloadRouter.shutdown(); } catch (e) { console.error('Shutdown error:', e.message); }
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 2000).unref();
+};
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {

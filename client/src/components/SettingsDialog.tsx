@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -108,6 +108,15 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   const [detectedBrowsers, setDetectedBrowsers] = useState<string[]>([]);
   const [cookieTestStatus, setCookieTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [cookieTestMsg, setCookieTestMsg] = useState('');
+  // Tracks the "Settings saved" toast timer so we never fire setState after
+  // unmount (or stack multiple timers on rapid saves).
+  const savedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current != null) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -155,7 +164,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
         downloadsDir: settings.downloadsDir,
       });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (savedTimerRef.current != null) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = window.setTimeout(() => setSaved(false), 2000);
     } catch {}
     setLoading(false);
   };
@@ -269,6 +279,11 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
               value={currentTheme.id}
               label="Theme"
               onChange={(e) => setTheme(e.target.value as string)}
+              MenuProps={{
+                PaperProps: {
+                  sx: { maxHeight: 280, overflowY: 'auto' },
+                },
+              }}
             >
               {themes.map((t) => (
                 <MenuItem key={t.id} value={t.id}>

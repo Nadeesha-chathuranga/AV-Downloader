@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -41,6 +41,14 @@ interface PlaylistPanelProps {
 const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, loading }) => {
   const [selected, setSelected] = useState<Set<number>>(new Set(entries.map((_, i) => i)));
   const { currentTheme } = useAppTheme();
+
+  // Sync the selection whenever a new playlist is loaded. Without this, a Set
+  // built for a previous playlist keeps its indices (referring to the WRONG
+  // rows) when the component stays mounted across "Get Playlist" calls, which
+  // could download unintended videos.
+  useEffect(() => {
+    setSelected(new Set(entries.map((_, i) => i)));
+  }, [entries]);
 
   const toggleSelect = (index: number) => {
     setSelected((prev) => {
@@ -264,4 +272,4 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, load
   );
 };
 
-export default PlaylistPanel;
+export default React.memo(PlaylistPanel);

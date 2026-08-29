@@ -13,6 +13,10 @@ yarn.lock
 .env.test.local
 .env.production.local
 
+# Browser cookie exports (can contain login/session credentials)
+*_cookies.txt
+cookies.txt
+
 # Build files
 /client/build/
 /dist/
@@ -68,9 +72,6 @@ Thumbs.db
 
 # Installer runtime data
 .install-info
-
-# Development docs
-ROADMAP.md
 
 # Runtime data
 pids

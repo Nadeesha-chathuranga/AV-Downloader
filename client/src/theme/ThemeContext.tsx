@@ -31,11 +31,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const currentTheme = useMemo(() => getThemeById(themeId), [themeId]);
 
+  const isLight = currentTheme.mode === 'light';
+  // Text color inside gradient "contained" buttons: dark text reads well on the
+  // vivid dark-theme gradients, but light themes need white text for contrast.
+  const buttonText = isLight ? '#fff' : '#000';
+
   const muiTheme = useMemo(
     () =>
       createTheme({
         palette: {
-          mode: 'dark',
+          mode: isLight ? 'light' : 'dark',
           primary: { main: currentTheme.colors.primary },
           secondary: { main: currentTheme.colors.secondary },
           background: {
@@ -63,6 +68,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             styleOverrides: {
               body: {
                 backgroundColor: currentTheme.colors.background,
+                // Theme-driven CSS variables so app stylesheets can use
+                // adaptive translucent colors on both light and dark themes.
+                '--theme-border': currentTheme.colors.border,
+                '--theme-scrollbar': isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.12)',
+                '--theme-scrollbar-hover': isLight ? 'rgba(0, 0, 0, 0.28)' : 'rgba(255, 255, 255, 0.24)',
+                '--theme-card-border': isLight ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.08)',
               },
             },
           },
@@ -91,7 +102,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               },
               containedPrimary: {
                 background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
-                color: '#000',
+                color: buttonText,
                 boxShadow: `0 4px 20px ${currentTheme.colors.primary}33`,
                 '&:hover': {
                   background: `linear-gradient(135deg, ${currentTheme.colors.primary}ee, ${currentTheme.colors.secondary}ee)`,
@@ -176,7 +187,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           },
         },
       }),
-    [currentTheme]
+    [currentTheme, isLight, buttonText]
   );
 
   const setTheme = (id: string) => setThemeId(id);
