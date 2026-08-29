@@ -846,6 +846,13 @@ router.get('/list', async (req, res) => {
         }
       }
     }
+    // Newest items first (then by name for a stable tie-break)
+    fileList.sort((a, b) => {
+      const ta = new Date(a.createdAt).getTime();
+      const tb = new Date(b.createdAt).getTime();
+      if (tb !== ta) return tb - ta;
+      return String(a.name).localeCompare(String(b.name));
+    });
     res.json(fileList);
   } catch (error) {
     res.status(500).json({ error: 'Failed to list files' });
