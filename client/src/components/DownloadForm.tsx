@@ -29,12 +29,14 @@ import {
   QueueMusic as PlaylistIcon,
   Code as CodeIcon,
   Close as CloseIcon,
+  Tune as TuneIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
 import { apiUrl } from '../config';
 import PlaylistPanel from './PlaylistPanel';
 import FormatSelector, { FormatEntry } from './FormatSelector';
+import TemplateEditor from './TemplateEditor';
 
 interface VideoInfo {
   id: string;
@@ -69,6 +71,8 @@ interface Template {
   description: string;
   args: string;
   builtIn: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const isPlaylistUrl = (url: string): boolean => {
@@ -162,6 +166,8 @@ const DownloadForm: React.FC = () => {
   const [customArgs, setCustomArgs] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [allTemplates, setAllTemplates] = useState<Template[]>([]);
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [videoFormats, setVideoFormats] = useState<FormatEntry[]>([]);
   const [audioFormats, setAudioFormats] = useState<FormatEntry[]>([]);
   const [allFormats, setAllFormats] = useState<FormatEntry[]>([]);
@@ -268,16 +274,16 @@ const DownloadForm: React.FC = () => {
     try {
       if (process.env.NODE_ENV === 'development') {
         setAllTemplates([
-          { id: 'best-quality', name: 'Best Quality', description: 'Best video+audio', args: '-f bestvideo+bestaudio --merge-output-format mkv', builtIn: true },
-          { id: 'audio-mp3', name: 'Audio Only (MP3)', description: 'Extract audio as MP3', args: '-x --audio-format mp3 --audio-quality 0 --embed-metadata', builtIn: true },
-          { id: 'audio-flac', name: 'Audio Only (FLAC)', description: 'Lossless FLAC', args: '-x --audio-format flac --embed-metadata', builtIn: true },
-          { id: '1080p-max', name: '1080p Max', description: 'Cap at 1080p', args: '-f bestvideo[height<=1080]+bestaudio --merge-output-format mp4', builtIn: true },
-          { id: '4k-download', name: '4K Ultra HD', description: 'Up to 4K', args: '-f bestvideo[height<=2160]+bestaudio --merge-output-format mkv', builtIn: true },
-          { id: 'with-subs', name: 'With Subtitles', description: 'Embed subtitles', args: '-f best --write-subs --sub-lang en --embed-subs --sub-format srt', builtIn: true },
-          { id: 'thumbnail-embed', name: 'Thumbnail Embed', description: 'Embed thumbnail', args: '-f best --embed-thumbnail', builtIn: true },
-          { id: 'minimal', name: 'Minimal', description: 'No playlist, no warnings', args: '-f best --no-playlist --no-warnings --no-check-certificates', builtIn: true },
-          { id: 'archive-mode', name: 'Archive Mode', description: 'Skip previously downloaded', args: '-f best --download-archive archive.txt --no-overwrites', builtIn: true },
-          { id: 'gif-convert', name: 'GIF Convert', description: 'Animated GIF', args: '-f best --merge-output-format gif', builtIn: true },
+          { id: 'best-quality', name: 'Best Quality', description: 'Best video+audio', args: '-f bestvideo+bestaudio --merge-output-format mkv', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'audio-mp3', name: 'Audio Only (MP3)', description: 'Extract audio as MP3', args: '-x --audio-format mp3 --audio-quality 0 --embed-metadata', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'audio-flac', name: 'Audio Only (FLAC)', description: 'Lossless FLAC', args: '-x --audio-format flac --embed-metadata', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: '1080p-max', name: '1080p Max', description: 'Cap at 1080p', args: '-f bestvideo[height<=1080]+bestaudio --merge-output-format mp4', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: '4k-download', name: '4K Ultra HD', description: 'Up to 4K', args: '-f bestvideo[height<=2160]+bestaudio --merge-output-format mkv', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'with-subs', name: 'With Subtitles', description: 'Embed subtitles', args: '-f best --write-subs --sub-lang en --embed-subs --sub-format srt', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'thumbnail-embed', name: 'Thumbnail Embed', description: 'Embed thumbnail', args: '-f best --embed-thumbnail', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'minimal', name: 'Minimal', description: 'No playlist, no warnings', args: '-f best --no-playlist --no-warnings --no-check-certificates', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'archive-mode', name: 'Archive Mode', description: 'Skip previously downloaded', args: '-f best --download-archive archive.txt --no-overwrites', builtIn: true, createdAt: '', updatedAt: '' },
+          { id: 'gif-convert', name: 'GIF Convert', description: 'Animated GIF', args: '-f best --merge-output-format gif', builtIn: true, createdAt: '', updatedAt: '' },
         ]);
         return;
       }
@@ -286,11 +292,23 @@ const DownloadForm: React.FC = () => {
       setAllTemplates(combined);
     } catch {
       setAllTemplates([
-        { id: 'best-quality', name: 'Best Quality', description: 'Best video+audio', args: '-f bestvideo+bestaudio --merge-output-format mkv', builtIn: true },
-        { id: 'audio-mp3', name: 'Audio Only (MP3)', description: 'Extract audio as MP3', args: '-x --audio-format mp3 --audio-quality 0 --embed-metadata', builtIn: true },
+        { id: 'best-quality', name: 'Best Quality', description: 'Best video+audio', args: '-f bestvideo+bestaudio --merge-output-format mkv', builtIn: true, createdAt: '', updatedAt: '' },
+        { id: 'audio-mp3', name: 'Audio Only (MP3)', description: 'Extract audio as MP3', args: '-x --audio-format mp3 --audio-quality 0 --embed-metadata', builtIn: true, createdAt: '', updatedAt: '' },
       ]);
     }
   }, [apiUrl]);
+
+  // Called by TemplateEditor after a create/update so the "Load Template"
+  // dropdown reflects the latest templates before we close the editor.
+  const handleTemplateSaved = useCallback(async () => {
+    await fetchTemplates();
+    setTemplateEditorOpen(false);
+  }, [fetchTemplates]);
+
+  const handleTemplateEditorClose = useCallback(() => {
+    setTemplateEditorOpen(false);
+    setEditingTemplate(null);
+  }, []);
 
   useEffect(() => {
     fetchQualityPresets();
@@ -488,6 +506,7 @@ const DownloadForm: React.FC = () => {
   };
 
   return (
+    <>
     <Card
       className="glass-card"
       sx={{ mb: 3, animation: 'fadeIn 0.5s ease', overflow: 'visible' }}
@@ -786,6 +805,17 @@ const DownloadForm: React.FC = () => {
               <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
                 Templates
               </Typography>
+              <Box sx={{ ml: 'auto' }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<TuneIcon />}
+                  onClick={() => { setEditingTemplate(null); setTemplateEditorOpen(true); }}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                >
+                  Manage
+                </Button>
+              </Box>
             </Box>
 
             <FormControl fullWidth sx={{ mb: 2 }}>
@@ -897,6 +927,14 @@ const DownloadForm: React.FC = () => {
         )}
       </CardContent>
     </Card>
+
+    <TemplateEditor
+      open={templateEditorOpen}
+      template={editingTemplate}
+      onClose={handleTemplateEditorClose}
+      onSave={handleTemplateSaved}
+    />
+    </>
   );
 };
 

@@ -47,7 +47,7 @@ interface QueueState {
 const DownloadItem: React.FC<{
   download: DownloadInfo;
   resumeDownload: (id: string) => void;
-  onCancel: (name: string) => void;
+  onCancel: (id: string, name: string) => void;
 }> = ({ download, resumeDownload, onCancel }) => {
   const { currentTheme } = useAppTheme();
   const smooth = useSmoothedMetrics(download);
@@ -98,7 +98,7 @@ const DownloadItem: React.FC<{
             </Tooltip>
             <Tooltip title="Dismiss">
               <IconButton
-                onClick={() => onCancel(download.filename || 'this download')}
+                onClick={() => onCancel(download.id, download.filename || 'this download')}
                 sx={{
                   p: 1,
                   width: 34,
@@ -115,7 +115,7 @@ const DownloadItem: React.FC<{
         {download.status !== 'resuming' && (
           <Tooltip title="Cancel">
             <IconButton
-              onClick={() => onCancel(download.filename || 'this download')}
+              onClick={() => onCancel(download.id, download.filename || 'this download')}
               sx={{
                 p: 1,
                 width: 34,
@@ -188,6 +188,11 @@ const DownloadItem: React.FC<{
   );
 };
 
+// Memoized so that when the shared downloads array changes (a progress packet
+// for ONE item arrives ~4x/sec), unaffected items don't re-render. Only items
+// whose own `download` object identity changed will re-render.
+const MemoizedDownloadItem = React.memo(DownloadItem);
+
 const DownloadPanel: React.FC = () => {
   const { downloads, playlists, cancelDownload, resumeDownload } = useSocket();
   const { currentTheme } = useAppTheme();
@@ -195,6 +200,10 @@ const DownloadPanel: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [queueExpanded, setQueueExpanded] = useState(true);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
+  // Local mirror of the server's max concurrent value. Kept in state so the
+  // slider responds instantly while dragging, and only pushed to the server on
+  // release (see onChangeCommitted) — instead of a network PUT per drag tick.
+  const [localMaxConcurrent, setLocalMaxConcurrent] = useState(3);
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -209,12 +218,17 @@ const DownloadPanel: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchQueue]);
 
-  const updateMaxConcurrent = async (val: number) => {
+  const updateMaxConcurrent = useCallback(async (val: number) => {
     try {
       await axios.put(`${apiUrl}/download/queue/settings`, { maxConcurrentDownloads: val });
       fetchQueue();
     } catch {}
-  };
+  }, [apiUrl, fetchQueue]);
+
+  // Stable so React.memo can skip re-rendering unaffected DownloadItems.
+  const handleCancelItem = useCallback((id: string, name: string) => {
+    setCancelTarget({ id, name });
+  }, []);
 
   const activeDownloads = downloads.filter(
     (d) => d.status === 'starting' || d.status === 'downloading' || d.status === 'resuming'
@@ -225,6 +239,12 @@ const DownloadPanel: React.FC = () => {
   const activePlaylistIds = Object.keys(playlists).filter(
     (id) => playlists[id].status === 'active'
   );
+
+  // Keep the local slider value in sync when the server value changes (e.g. on
+  // initial load / external change), but don't fight the user mid-drag.
+  useEffect(() => {
+    setLocalMaxConcurrent((prev) => (prev !== maxConcurrent ? maxConcurrent : prev));
+  }, [maxConcurrent]);
 
   const hasContent =
     activeDownloads.length > 0 ||
@@ -341,11 +361,11 @@ const DownloadPanel: React.FC = () => {
 
           {/* Active Downloads */}
           {activeDownloads.map((download) => (
-            <DownloadItem
+            <MemoizedDownloadItem
               key={download.id}
               download={download}
               resumeDownload={resumeDownload}
-              onCancel={(name) => setCancelTarget({ id: download.id, name })}
+              onCancel={handleCancelItem}
             />
           ))}
 
@@ -423,8 +443,11 @@ const DownloadPanel: React.FC = () => {
                       Max Concurrent: {maxConcurrent}
                     </Typography>
                     <Slider
-                      value={maxConcurrent}
-                      onChange={(_, v) => updateMaxConcurrent(v as number)}
+                      value={localMaxConcurrent}
+                      // Update local state on every tick so the UI is instant,
+                      // but only persist to the server once the drag is released.
+                      onChange={(_, v) => setLocalMaxConcurrent(v as number)}
+                      onChangeCommitted={(_, v) => updateMaxConcurrent(v as number)}
                       min={1}
                       max={10}
                       step={1}

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { apiUrl } from '../config';
 
 export interface DownloadInfo {
@@ -27,17 +27,9 @@ interface PlaylistInfo {
   status: 'active' | 'completed' | 'partial';
 }
 
-interface QueueState {
-  maxConcurrent: number;
-  activeCount: number;
-  queueLength: number;
-}
-
 interface SocketContextType {
-  socket: Socket | null;
   downloads: DownloadInfo[];
   playlists: Record<string, PlaylistInfo>;
-  queue: QueueState;
   cancelDownload: (id: string) => void;
   resumeDownload: (id: string) => Promise<void>;
 }
@@ -57,10 +49,8 @@ interface SocketProviderProps {
 }
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [downloads, setDownloads] = useState<DownloadInfo[]>([]);
   const [playlists, setPlaylists] = useState<Record<string, PlaylistInfo>>({});
-  const [queue] = useState<QueueState>({ maxConcurrent: 3, activeCount: 0, queueLength: 0 });
 
   const cancelDownload = useCallback(async (id: string) => {
     try {
@@ -94,7 +84,24 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         : process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
 
     const newSocket = io(serverUrl);
-    setSocket(newSocket);
+
+    // Remove an individual download entry after a short grace period so the UI
+    // keeps the "completed/error" state visible for a moment, then frees it.
+    // Without this, entries accumulate for the lifetime of the page (and the
+    // whole `downloads` array is re-mapped on every socket event) — a slow,
+    // unbounded memory leak on long sessions.
+    const pendingRemovals = new Map<string, number>();
+
+    const scheduleRemoval = (id: string, delayMs = 10000) => {
+      if (pendingRemovals.has(id)) clearTimeout(pendingRemovals.get(id));
+      pendingRemovals.set(
+        id,
+        window.setTimeout(() => {
+          pendingRemovals.delete(id);
+          setDownloads((prev) => prev.filter((d) => d.id !== id));
+        }, delayMs)
+      );
+    };
 
     newSocket.on('download-start', (download: DownloadInfo) => {
       setDownloads((prev) => {
@@ -114,6 +121,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       setDownloads((prev) =>
         prev.map((d) => (d.id === download.id ? { ...d, ...download } : d))
       );
+      scheduleRemoval(download.id);
       if (download.playlistId) {
         setPlaylists((prev) => {
           const pl = prev[download.playlistId!];
@@ -134,6 +142,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       setDownloads((prev) =>
         prev.map((d) => (d.id === download.id ? { ...d, ...download } : d))
       );
+      scheduleRemoval(download.id);
       if (download.playlistId) {
         setPlaylists((prev) => {
           const pl = prev[download.playlistId!];
@@ -199,12 +208,14 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     return () => {
+      for (const t of pendingRemovals.values()) clearTimeout(t);
+      pendingRemovals.clear();
       newSocket.close();
     };
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, downloads, playlists, queue, cancelDownload, resumeDownload }}>
+    <SocketContext.Provider value={{ downloads, playlists, cancelDownload, resumeDownload }}>
       {children}
     </SocketContext.Provider>
   );

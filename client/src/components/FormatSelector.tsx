@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -92,11 +92,17 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
   const { currentTheme } = useAppTheme();
 
   const formatRows = tab === 0 ? videoFormats : tab === 1 ? audioFormats : allFormats;
-  const sorted = [...formatRows].sort((a, b) => {
-    if (a.height && b.height) return b.height - a.height;
-    if (a.tbr && b.tbr) return b.tbr - a.tbr;
-    return 0;
-  });
+  // Memoize the sort so keystrokes in the parent (which would otherwise
+  // re-render this component) don't re-sort the whole table every time.
+  const sorted = useMemo(
+    () =>
+      [...formatRows].sort((a, b) => {
+        if (a.height && b.height) return b.height - a.height;
+        if (a.tbr && b.tbr) return b.tbr - a.tbr;
+        return 0;
+      }),
+    [formatRows]
+  );
 
   const isRecommended = (f: FormatEntry) =>
     f.format_id === recommendedVideo || f.format_id === recommendedAudio;
@@ -300,4 +306,4 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
   );
 };
 
-export default FormatSelector;
+export default React.memo(FormatSelector);

@@ -32,20 +32,20 @@
 }
 
 .app-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-scrollbar, rgba(255, 255, 255, 0.08));
   border-radius: 4px;
 }
 
 .glass-card {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--theme-card-border, rgba(255, 255, 255, 0.06));
   border-radius: 12px;
   transition: all 0.3s ease;
 }
 
 .glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--theme-card-border, rgba(255, 255, 255, 0.12));
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
 }
 

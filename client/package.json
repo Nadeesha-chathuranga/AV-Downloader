@@ -7,7 +7,6 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.1",
-    "@mui/lab": "^7.0.0-beta.16",
     "@mui/material": "^7.3.1",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
@@ -18,10 +17,6 @@
     "typescript": "^5.8.3"
   },
   "devDependencies": {
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.15.3",
     "@vitejs/plugin-react": "^4.4.1",
     "vite": "^6.3.5"
