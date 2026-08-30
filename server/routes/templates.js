@@ -2,8 +2,9 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
+const { dataDir } = require('../paths');
 
-const TEMPLATES_FILE = path.join(__dirname, '../templates/templates.json');
+const TEMPLATES_FILE = path.join(dataDir(), 'templates', 'templates.json');
 const DEFAULTS_FILE = path.join(__dirname, '../templates/defaults.json');
 
 const DANGEROUS_FLAGS = [
