@@ -471,7 +471,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', fontSize: '0.85rem' }}>
-            Downloads are saved here. Files are split automatically to <strong>Video</strong> and <strong>Audio</strong>. Default: <strong>C:\Users\You\Downloads\Seal downloads</strong>
+            Downloads are saved here. Files are split automatically to <strong>Video</strong> and <strong>Audio</strong>. Default: <strong>C:\Users\You\Downloads\AV Downloader</strong>
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <TextField

@@ -17,7 +17,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export const useAppTheme = () => useContext(ThemeContext);
 
-const STORAGE_KEY = 'universal-downloader-theme';
+const STORAGE_KEY = 'av-downloader-theme';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeId, setThemeId] = useState<string>(() => {

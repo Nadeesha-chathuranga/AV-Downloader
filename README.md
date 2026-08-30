@@ -1,4 +1,4 @@
-# Seal Web App
+# AV Downloader
 
 A web-based video/audio downloader powered by **yt-dlp** and **ffmpeg**. Download media from thousands of sites through a modern, themeable React interface, with a queue, download persistence/resume, cookie support, and real-time progress over Socket.io.
 

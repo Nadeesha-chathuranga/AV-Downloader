@@ -364,10 +364,10 @@ const DownloadForm: React.FC = () => {
         if (!isPlaylist) {
           setVideoInfo({
             id: 'demo123',
-            title: 'Demo Video - Seal Web Downloader Preview',
+            title: 'Demo Video - AV Downloader Preview',
             description: 'Backend server needs to be running.',
             duration: 180,
-            uploader: 'Seal Web Downloader Demo',
+            uploader: 'AV Downloader Demo',
             upload_date: '20250826',
             view_count: 1000,
             thumbnail: 'https://via.placeholder.com/320x180/1976d2/ffffff?text=Demo+Video',
