@@ -6,9 +6,9 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <g fill="#0a0a0f">
-    <polygon points="168,92 70,356 266,356"/>
-    <rect x="122" y="258" width="92" height="62" rx="10"/>
-    <polygon points="288,128 382,356 477,128"/>
+  <g fill="none" stroke="#0a0a0f" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M80 396 L153 126 L226 396"/>
+    <path d="M107 296 L199 296"/>
+    <path d="M312 126 L372 396 L432 126"/>
   </g>
 </svg>

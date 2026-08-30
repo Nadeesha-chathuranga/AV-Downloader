@@ -3,11 +3,19 @@ const path = require('path');
 const fs = require('fs');
 
 function resolveTrayIcon() {
-  const ico = path.join(__dirname, '..', 'buildResources', 'icon.ico');
-  if (fs.existsSync(ico)) {
-    const img = nativeImage.createFromPath(ico);
-    if (!img.isEmpty()) {
-      return process.platform === 'win32' ? img.resize({ width: 16, height: 16 }) : img;
+  // electron/tray.png ships inside the asar, so it works on installed builds.
+  const candidates = [
+    path.join(__dirname, 'tray.png'),
+    path.join(__dirname, '..', 'buildResources', 'icon.ico'),
+  ];
+  for (const src of candidates) {
+    if (fs.existsSync(src)) {
+      const img = nativeImage.createFromPath(src);
+      if (!img.isEmpty()) {
+        return process.platform === 'win32'
+          ? img.resize({ width: 16, height: 16 })
+          : img;
+      }
     }
   }
   return nativeImage.createEmpty();
