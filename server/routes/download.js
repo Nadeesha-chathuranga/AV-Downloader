@@ -1,10 +1,12 @@
 const express = require('express');
-const { spawn, exec } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs-extra');
 const router = express.Router();
 const state = require('../state');
+const { dataDir } = require('../paths');
+const { spawnYtDlp } = require('../binary');
 
 const DOWNLOAD_FOLDER = 'AV Downloader';
 const VIDEO_SUBFOLDER = 'Video';
@@ -19,7 +21,7 @@ const DANGEROUS_FLAGS = [
   '--output', '--paths', '--path', '-o',
 ];
 
-const CONFIG_PATH = path.join(__dirname, '../config.json');
+const CONFIG_PATH = path.join(dataDir(), 'config.json');
 
 const loadConfig = () => {
   try {
@@ -129,7 +131,7 @@ const probeAudioMetadata = async (url) => {
 
   try {
     const result = await new Promise((resolve, reject) => {
-      const proc = spawn('yt-dlp', args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const proc = spawnYtDlp(args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
       let out = '';
       proc.stdout.on('data', (d) => { out += d.toString(); });
       proc.stderr.on('data', (d) => { out += d.toString(); });
@@ -336,7 +338,7 @@ const startDownload = (job) => {
 
   io.emit('download-start', { ...info, status: 'starting' });
 
-  const ytdlp = spawn('yt-dlp', args);
+  const ytdlp = spawnYtDlp(args);
   ytdlp.info = info;
   ytdlp.job = job;
   ytdlp.startedAt = job.startedAt;
@@ -539,7 +541,7 @@ router.post('/cookie-test', async (req, res) => {
   args.push('https://www.youtube.com/@YouTube/videos');
   try {
     await new Promise((resolve, reject) => {
-      const proc = spawn('yt-dlp', args);
+      const proc = spawnYtDlp(args);
       let stderr = '';
       proc.stderr.on('data', (d) => { stderr += d.toString(); });
       proc.on('close', (code) => {

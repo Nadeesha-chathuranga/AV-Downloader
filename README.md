@@ -1,6 +1,11 @@
 # AV Downloader
 
-A web-based video/audio downloader powered by **yt-dlp** and **ffmpeg**. Download media from thousands of sites through a modern, themeable React interface, with a queue, download persistence/resume, cookie support, and real-time progress over Socket.io.
+A video/audio downloader powered by **yt-dlp** and **ffmpeg**, available two ways:
+
+- **Windows desktop app** (recommended) — an Electron-based installer that bundles everything and downloads `yt-dlp`/`ffmpeg` automatically on first run. No prerequisites needed.
+- **Web app** — run the backend + React frontend locally for development or self-hosting.
+
+Download media from thousands of sites through a modern, themeable React interface, with a queue, download persistence/resume, cookie support, and real-time progress over Socket.io.
 
 ---
 
@@ -30,19 +35,31 @@ A web-based video/audio downloader powered by **yt-dlp** and **ffmpeg**. Downloa
 
 ---
 
+## Desktop App (Windows)
+
+The recommended way to use AV Downloader is the packaged desktop app.
+
+- **No prerequisites** — on first launch it downloads `yt-dlp` and `ffmpeg` into `%APPDATA%\AV Downloader\bin` (verified and cached; only fetched once), then opens the app.
+- **Installer** — `npm run dist` produces an NSIS `Setup` in `dist/` that installs per-user with a Start-menu/desktop shortcut.
+- **Runtime data** (`config`, `state`, user templates) lives under `%APPDATA%\AV Downloader`, separate from the installed program files.
+- **Updates** — installed builds check GitHub Releases via `electron-updater`. While the release repo is private the check is a silent no-op; making the repo public activates automatic updates with no code change.
+- **Signing / SmartScreen** — builds are currently **unsigned**. Windows SmartScreen may show "Unknown publisher" on first run; click **More info → Run anyway**. When a code-signing certificate is available, set `CSC_LINK` / `CSC_KEY_PASSWORD` and rebuild — no code changes needed.
+- See [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) for the full release process.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) v22+
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) installed and in your PATH
-- [ffmpeg](https://ffmpeg.org) installed and in your PATH
+- For the web mode only: [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org) in your PATH
 
 ### Install & Run
 
 ```bash
-git clone https://github.com/Nadeesha-chathuranga/Seal-Web-App.git
-cd Seal-Web-App
+git clone https://github.com/Nadeesha-chathuranga/AV-Downloader.git
+cd AV-Downloader
 npm run install:all
 npm run dev
 ```
@@ -54,13 +71,15 @@ npm run dev
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start backend + frontend together |
+| `npm run dev` | Start backend + frontend together (web mode) |
 | `npm run server:dev` | Start backend only (port 5000, nodemon) |
 | `npm run client:dev` | Start frontend only (port 3000, Vite) |
 | `npm run build` | Build frontend for production |
-| `npm start` | Run the production server |
-
-> **Note:** `npm start` is intended to serve the built client, but currently `vite build` outputs to `client/dist` while the server serves `client/build` — a known gap. Development mode (`npm run dev`) is unaffected.
+| `npm start` | Run the production server serving the built client |
+| `npm run desktop` | Build client + launch the app in Electron (dev-friendly) |
+| `npm run gen:icon` | Regenerate `buildResources/icon.ico` from `icon.svg` |
+| `npm run dist` | Build the Windows installer into `dist/` |
+| `npm run dist:dir` | Build an unpacked `dist/win-unpacked/` folder for testing |
 
 ---
 
@@ -68,8 +87,21 @@ npm run dev
 
 ```
 Seal-Web-App/
+├── electron/               Desktop app (Windows)
+│   ├── main.js             Electron entry: embedded server, window, tray
+│   ├── binary-downloader.js First-run yt-dlp/ffmpeg download + cache
+│   ├── updater.js          Auto-update wiring (silent while repo is private)
+│   ├── tray.js             System-tray integration
+│   ├── preload.js          Safe renderer bridge (avDownloader.*)
+│   ├── loading.html/js     Branded splash while the server boots
+│   └── scripts/gen-icon.js Icon pipeline (sharp + png-to-ico)
+├── buildResources/         electron-builder assets (icon.ico, tray.png)
+├── electron-builder.yml    NSIS packaging config
+├── .github/workflows/      CI: build + publish on version tags
 ├── server/                 Express backend
 │   ├── index.js            Entry point, Socket.io, graceful shutdown
+│   ├── paths.js            Runtime data directory (all platforms)
+│   ├── binary.js           Resolves spawned yt-dlp / ffmpeg
 │   ├── state.js            Queue/download state persistence
 │   ├── security.js         Arg validation, probe concurrency
 │   ├── config.json         Runtime config (gitignored)
@@ -89,9 +121,7 @@ Seal-Web-App/
 │       ├── hooks/          useSmoothedMetrics (terminal-style rate smoothing)
 │       ├── theme/          20 themes (10 dark + 10 light)
 │       └── config.ts       API configuration
-├── downloads/              Downloaded files (Video/, Audio/)
-├── .env                    Server configuration (gitignored)
-└── package.json
+└── dist/                   electron-builder output (gitignored)
 ```
 
 ---
@@ -151,8 +181,9 @@ Environment variables in `.env` (gitignored):
 | `CLIENT_ORIGIN` | `http://localhost:3000` | Allowed CORS origins (comma-separated) |
 | `NODE_ENV` | `development` | `production` serves the built client and disables CORS |
 | `REACT_APP_SERVER_URL` | `http://localhost:5000` | Frontend → backend URL (also in `client/.env`) |
+| `SEAL_DATA_DIR` | `server/` | Override where runtime data (config/state/templates) is stored; the Electron app sets this to `%APPDATA%\AV Downloader` |
 
-Runtime settings are stored in `server/config.json` (gitignored) and editable from the Settings UI: max concurrent downloads, download speed limit, cookie browser/path, and the downloads directory.
+Runtime settings are stored in `runtime config.json` (gitignored) and editable from the Settings UI: max concurrent downloads, download speed limit, cookie browser/path, and the downloads directory.
 
 ---
 
@@ -174,7 +205,7 @@ The server hardens yt-dlp usage, which is an attack surface since it fetches arb
 
 ## Queue & Download Persistence
 
-The download queue and any interrupted (active) downloads are persisted to `server/state.json` (gitignored) so they survive backend restarts — including development restarts, which previously lost everything (e.g. saving settings mid-download).
+The download queue and any interrupted (active) downloads are persisted to the runtime data directory — `server/state.json` in web mode, `%APPDATA%\AV Downloader\state.json` in the desktop app — so they survive backend restarts, including development restarts, which previously lost everything (e.g. saving settings mid-download).
 
 - **Queue:** pending jobs are restored and re-issued.
 - **Active downloads:** interrupted jobs are re-issued with the same `-o` args, so yt-dlp resumes from the existing `.part` file.
@@ -190,11 +221,10 @@ In development, `nodemon` watches `server/**/*.js` and ignores config/state chan
 
 Highlights still on the table:
 
-- Windows one-click installer
-- macOS/Linux installer scripts
+- macOS/Linux launchers
 - Batch download support (beyond Queue)
 - Download history advanced filtering/cleanup
-- Fix the production build-serving path mismatch (`dist/` vs `build/`)
+- Code signing for the Windows installer (env-wired, waiting for a certificate)
 
 ---
 

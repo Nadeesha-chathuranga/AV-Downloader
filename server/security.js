@@ -4,7 +4,8 @@
 // removed (it caused false positives that blocked legitimate public downloads);
 // this module now only provides a bounded, timeout-safe metadata probe.
 
-const { spawn } = require('child_process');
+const { exec } = require('child_process');
+const { spawnYtDlp } = require('./binary');
 
 // Shared concurrency limit for metadata probes (/info, /playlist, /formats).
 // Each request spawns a fresh yt-dlp; without a cap a flurry of requests could
@@ -40,7 +41,7 @@ async function runProbe(args, opts = {}) {
     return await new Promise((resolve) => {
       let proc;
       try {
-        proc = spawn('yt-dlp', args, { windowsHide: true });
+        proc = spawnYtDlp(args, { windowsHide: true });
       } catch (err) {
         return resolve({ code: -1, stdout: '', stderr: String(err && err.message || err), timedOut: false });
       }

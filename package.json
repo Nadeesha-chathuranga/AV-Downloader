@@ -2,13 +2,17 @@
     "name": "av-downloader",
     "version": "1.0.0",
     "description": "A web-based video/audio downloader interface for yt-dlp",
-    "main": "server/index.js",
+    "main": "electron/main.js",
     "scripts": {
         "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
         "server:dev": "nodemon server/index.js",
         "client:dev": "cd client && npm run dev",
         "build": "cd client && npm run build",
-        "start": "node server/index.js",
+        "start": "cross-env NODE_ENV=production node server/index.js",
+        "desktop": "npm run build && electron .",
+        "gen:icon": "node electron/scripts/gen-icon.js",
+        "dist": "npm run build && electron-builder --win",
+        "dist:dir": "npm run build && electron-builder --win --dir",
         "install:all": "npm install && cd client && npm install",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -21,9 +25,15 @@
     ],
     "author": "AV Downloader",
     "license": "GPL-3.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Nadeesha-chathuranga/AV-Downloader.git"
+    },
     "dependencies": {
+        "adm-zip": "^0.6.0",
         "cors": "^2.8.5",
         "dotenv": "^16.4.7",
+        "electron-updater": "^6.8.9",
         "express": "^4.21.2",
         "fs-extra": "^11.3.0",
         "helmet": "^8.0.0",
@@ -32,6 +42,11 @@
     },
     "devDependencies": {
         "concurrently": "^9.1.2",
-        "nodemon": "^3.1.9"
+        "cross-env": "^7.0.3",
+        "electron": "^44.0.0",
+        "electron-builder": "^26.15.3",
+        "nodemon": "^3.1.9",
+        "png-to-ico": "^3.0.2",
+        "sharp": "^0.35.4"
     }
 }

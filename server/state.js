@@ -1,7 +1,8 @@
 const path = require('path');
 const fs = require('fs-extra');
+const { dataDir } = require('./paths');
 
-const STATE_PATH = path.join(__dirname, 'state.json');
+const STATE_PATH = path.join(dataDir(), 'state.json');
 const STATE_TMP_PATH = STATE_PATH + '.tmp';
 
 const serializeJob = (job) => {

@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const http = require('http');
 const socketIo = require('socket.io');
+const { dataDir } = require('./paths');
 
 const app = express();
 const server = http.createServer(app);
@@ -52,13 +53,13 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from React build in production
+// Serve static files from Vite build in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  app.use(express.static(path.join(__dirname, '../client/dist')));
 }
 
 // Ensure downloads and templates directories exist
-const templatesDir = path.join(__dirname, '../templates');
+const templatesDir = path.join(dataDir(), 'templates');
 fs.ensureDirSync(templatesDir);
 
 // Routes
@@ -117,7 +118,7 @@ process.on('SIGTERM', shutdown);
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build/index.html'));
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 }
 

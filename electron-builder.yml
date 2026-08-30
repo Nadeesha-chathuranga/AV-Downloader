@@ -1,0 +1,39 @@
+appId: com.avdownloader.app
+productName: AV Downloader
+copyright: Copyright © 2026 AV Downloader
+
+directories:
+  buildResources: buildResources
+  output: dist
+
+files:
+  - electron/**
+  - server/**
+  - client/dist/**
+  - package.json
+  - "!server/config.json"
+  - "!server/state.json"
+  - "!server/state.json.tmp"
+  - "!**/*.map"
+  - "!**/.env*"
+
+asar: true
+
+win:
+  target:
+    - nsis
+  icon: buildResources/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: AV Downloader
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+
+publish:
+  provider: github
+  owner: Nadeesha-chathuranga
+  repo: AV-Downloader
