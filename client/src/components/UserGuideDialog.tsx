@@ -51,7 +51,7 @@ const UserGuideDialog: React.FC<UserGuideDialogProps> = ({ open, onClose }) => {
           </li>
           <li>
             <Typography variant="body2">
-              Downloads are saved under <strong>Seal downloads</strong> on your computer, split automatically into a <strong>Video</strong> folder and an <strong>Audio</strong> folder. You can change this location in Settings.
+              Downloads are saved under <strong>AV Downloader</strong> on your computer, split automatically into a <strong>Video</strong> folder and an <strong>Audio</strong> folder. You can change this location in Settings.
             </Typography>
           </li>
           <li>

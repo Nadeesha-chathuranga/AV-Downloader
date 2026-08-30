@@ -6,7 +6,7 @@ const fs = require('fs-extra');
 const router = express.Router();
 const state = require('../state');
 
-const DOWNLOAD_FOLDER = 'Seal downloads';
+const DOWNLOAD_FOLDER = 'AV Downloader';
 const VIDEO_SUBFOLDER = 'Video';
 const AUDIO_SUBFOLDER = 'Audio';
 

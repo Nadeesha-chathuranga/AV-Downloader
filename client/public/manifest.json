@@ -1,6 +1,6 @@
 {
-  "short_name": "Seal Downloader",
-  "name": "Seal Web Downloader",
+  "short_name": "AV Downloader",
+  "name": "AV Downloader",
   "icons": [
     {
       "src": "favicon.svg",

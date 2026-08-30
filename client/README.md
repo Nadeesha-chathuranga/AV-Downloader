@@ -1,6 +1,6 @@
-# Seal Web App — Frontend
+# AV Downloader — Frontend
 
-React 19 + Vite 6 frontend for the Seal Web App, a web-based video/audio downloader. Concepts inspired by the [Seal Android app](https://github.com/JunkFood02/Seal).
+React 19 + Vite 6 frontend for the AV Downloader, a web-based video/audio downloader. Concepts inspired by the [Seal Android app](https://github.com/JunkFood02/Seal).
 
 ## Stack
 

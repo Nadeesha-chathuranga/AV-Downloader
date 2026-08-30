@@ -281,7 +281,7 @@ const DownloadPanel: React.FC = () => {
             }}
           >
             <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="currentColor">S</text>
+              <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="22" fill="currentColor">AV</text>
             </svg>
           </Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>

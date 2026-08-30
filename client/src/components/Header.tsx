@@ -88,7 +88,7 @@ const Header: React.FC = () => {
               }}
             >
               <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="24" fill="currentColor">S</text>
+                <text x="16" y="24" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="900" fontSize="22" fill="currentColor">AV</text>
               </svg>
             </Box>
             <Box>
@@ -102,7 +102,7 @@ const Header: React.FC = () => {
                   color: 'text.primary',
                 }}
               >
-                Seal Web Downloader
+                AV Downloader
               </Typography>
               <Typography
                 variant="caption"
