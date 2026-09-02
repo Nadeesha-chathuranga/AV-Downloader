@@ -668,7 +668,7 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         {/* Always-visible quality section */}
-        <Box sx={{ mb: 3, p: 2, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+        <Box sx={{ mb: 3, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Quality
@@ -966,7 +966,7 @@ const DownloadForm: React.FC = () => {
 
         {videoInfo && (
           <Card sx={{ mt: 2, background: `${currentTheme.colors.surfaceAlt}44`, border: `1px solid ${currentTheme.colors.border}`, borderRadius: 1.5 }}>
-            <CardContent sx={{ p: 3 }}>
+            <CardContent sx={{ p: 2.5 }}>
               <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center' }}>
                 {videoInfo.thumbnail && (
                   <Box

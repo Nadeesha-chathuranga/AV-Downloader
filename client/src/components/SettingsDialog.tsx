@@ -515,7 +515,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                   When you copy a video URL, AV Downloader auto-fills it and fetches its info.
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                  Works in the desktop app (not browser mode).
+                  Works in the desktop app.
                 </Typography>
               </Box>
             }
