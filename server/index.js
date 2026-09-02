@@ -44,7 +44,17 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(helmet());
+// Keep Helmet's security defaults but allow remote (HTTPS) images — video
+// thumbnails come from CDNs like i.ytimg.com / img.youtube.com and the
+// default `img-src 'self' data:` CSP blocks them, leaving the thumbnail blank.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", 'data:', 'https:'],
+    },
+  },
+}));
 app.use(cors({
   origin: corsOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],

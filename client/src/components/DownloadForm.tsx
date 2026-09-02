@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -158,6 +158,9 @@ const OPTION_GROUPS: OptionGroup[] = [
 
 const DownloadForm: React.FC = () => {
   const [url, setUrl] = useState('');
+  const urlRef = useRef(url);
+  urlRef.current = url;
+  const [pendingAutoFetch, setPendingAutoFetch] = useState(false);
   const handleUrlFocus = useCallback(async () => {
     if (url.trim()) return;
     const readClipboard = window.avDownloader?.getClipboardText;
@@ -166,6 +169,7 @@ const DownloadForm: React.FC = () => {
       const text = (await readClipboard()).trim();
       if (text && looksLikeUrl(text)) {
         setUrl(text);
+        setPendingAutoFetch(true);
       }
     } catch {
       // ignore clipboard read failures
@@ -401,6 +405,45 @@ const DownloadForm: React.FC = () => {
     }
   };
 
+  // Shared/deep-linked URLs (avdownloader:// links or the clipboard watcher)
+  // always overwrite the field, then trigger Get Info automatically.
+  useEffect(() => {
+    const bridge = window.avDownloader;
+    if (!bridge) return undefined;
+    let mounted = true;
+
+    const applyExternalUrl = (text: string) => {
+      if (!mounted) return;
+      const value = (text || '').trim();
+      if (!value || !looksLikeUrl(value)) return;
+      if (urlRef.current.trim() === value) return;
+      setUrl(value);
+      setPendingAutoFetch(true);
+    };
+
+    bridge
+      .getPendingDeepLink()
+      .then((url) => {
+        if (url) applyExternalUrl(url);
+      })
+      .catch(() => {});
+
+    const dispose = bridge.onDeepLink(applyExternalUrl);
+    return () => {
+      mounted = false;
+      dispose();
+    };
+  }, []);
+
+  // Off-pending fetch: run once the external URL has landed in the form state.
+  useEffect(() => {
+    if (pendingAutoFetch && url.trim() && !loading) {
+      setPendingAutoFetch(false);
+      fetchVideoInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoFetch, url, loading]);
+
   const handleDownload = async () => {
     if (!url.trim()) {
       setError('Please enter a URL');
@@ -433,10 +476,6 @@ const DownloadForm: React.FC = () => {
       });
       if (response.data.success) {
         setSuccess('Download started successfully!');
-        setUrl('');
-        setVideoInfo(null);
-        setPlaylistInfo(null);
-        resetFormatSelection();
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -446,6 +485,12 @@ const DownloadForm: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      // Clear the field after a manual Download regardless of outcome so the
+      // app is ready for the next pasted link.
+      setUrl('');
+      setVideoInfo(null);
+      setPlaylistInfo(null);
+      resetFormatSelection();
     }
   };
 
@@ -470,10 +515,6 @@ const DownloadForm: React.FC = () => {
       });
       if (response.data.success) {
         setSuccess(`Playlist download started: ${response.data.total} videos queued`);
-        setUrl('');
-        setVideoInfo(null);
-        setPlaylistInfo(null);
-        resetFormatSelection();
       }
     } catch (error: any) {
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -483,6 +524,10 @@ const DownloadForm: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      setUrl('');
+      setVideoInfo(null);
+      setPlaylistInfo(null);
+      resetFormatSelection();
     }
   };
 
@@ -558,6 +603,13 @@ const DownloadForm: React.FC = () => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onFocus={handleUrlFocus}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData('text').trim();
+              if (pasted && looksLikeUrl(pasted)) {
+                setUrl(pasted);
+                setPendingAutoFetch(true);
+              }
+            }}
             InputProps={{
               startAdornment: <LinkIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />,
             }}
@@ -616,7 +668,7 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         {/* Always-visible quality section */}
-        <Box sx={{ mb: 3, p: 2, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+        <Box sx={{ mb: 3, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Quality
@@ -914,10 +966,48 @@ const DownloadForm: React.FC = () => {
 
         {videoInfo && (
           <Card sx={{ mt: 2, background: `${currentTheme.colors.surfaceAlt}44`, border: `1px solid ${currentTheme.colors.border}`, borderRadius: 1.5 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', gap: 2.5 }}>
+            <CardContent sx={{ p: 2.5 }}>
+              <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center' }}>
                 {videoInfo.thumbnail && (
-                  <Box component="img" src={videoInfo.thumbnail} alt="Thumbnail" sx={{ width: 160, height: 90, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }} />
+                  <Box
+                    sx={{
+                      width: 160,
+                      height: 90,
+                      flexShrink: 0,
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      background: currentTheme.colors.background,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: `1px solid ${currentTheme.colors.border}`,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={videoInfo.thumbnail}
+                      alt="Thumbnail"
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        const cur = img.getAttribute('src') || '';
+                        const ytId = (videoInfo.webpage_url || '').match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1]
+                          || videoInfo.id;
+                        if (ytId && !cur.includes('hqdefault.jpg')) {
+                          img.src = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+                        } else {
+                          img.style.display = 'none';
+                        }
+                      }}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                    />
+                  </Box>
                 )}
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>{videoInfo.title}</Typography>

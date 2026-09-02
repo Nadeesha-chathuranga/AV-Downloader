@@ -16,6 +16,8 @@ import {
   InputLabel,
   TextField,
   Alert,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -28,6 +30,7 @@ import {
   Error as ErrorIcon,
   OpenInNew as OpenInNewIcon,
   FolderOpen as FolderOpenIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -111,6 +114,29 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   // Tracks the "Settings saved" toast timer so we never fire setState after
   // unmount (or stack multiple timers on rapid saves).
   const savedTimerRef = useRef<number | null>(null);
+  // Clipboard link detection ("Share -> Copy link") — persisted locally and
+  // mirrored to the Electron main process, which owns the polling loop.
+  const [clipboardWatch, setClipboardWatchState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('avd_clipboard_watch') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const toggleClipboardWatch = () => {
+    setClipboardWatchState((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('avd_clipboard_watch', next ? '1' : '0');
+      } catch {
+        // ignore persistence failures
+      }
+      return next;
+    });
+  };
+  useEffect(() => {
+    window.avDownloader?.setClipboardWatch(clipboardWatch);
+  }, [clipboardWatch]);
 
   useEffect(() => {
     return () => {
@@ -458,6 +484,43 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
               </Box>
             </Box>
           )}
+        </Box>
+
+        <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />
+
+        {/* Sharing & Integration Section */}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <LinkIcon sx={{ fontSize: 18, color: currentTheme.colors.info }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+              Sharing &amp; Integration
+            </Typography>
+          </Box>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={clipboardWatch}
+                onChange={toggleClipboardWatch}
+                size="small"
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': { color: currentTheme.colors.secondary },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: currentTheme.colors.secondary },
+                }}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>Detect copied video links</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  When you copy a video URL, AV Downloader auto-fills it and fetches its info.
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Works in the desktop app.
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start', ml: 0, '& .MuiFormControlLabel-label': { mt: 0.25 } }}
+          />
         </Box>
 
         <Divider sx={{ borderColor: currentTheme.colors.border, mb: 3 }} />

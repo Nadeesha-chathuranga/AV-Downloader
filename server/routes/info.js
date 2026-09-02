@@ -19,6 +19,22 @@ const loadConfig = () => {
   return {};
 };
 
+// Pick a reliable JPG thumbnail from yt-dlp's thumbnails array, avoiding
+// WebP URLs (which can silently fail to decode in Electron) and storyboard
+// entries. Falls back to the raw `thumbnail` field, then to a constructed
+// hqdefault.jpg URL for known YouTube IDs.
+function pickBestThumbnail(videoInfo) {
+  const thumbs = videoInfo.thumbnails || [];
+  const jpg = thumbs
+    .filter((t) => t.url && /\.jpg(\?|$)/i.test(t.url) && !/storyboard/i.test(t.url))
+    .sort((a, b) => (b.preference || 0) - (a.preference || 0));
+  if (jpg.length > 0) return jpg[0].url;
+  if (videoInfo.thumbnail && !/\.webp(\?|$)/i.test(videoInfo.thumbnail)) return videoInfo.thumbnail;
+  if (videoInfo.thumbnail) return videoInfo.thumbnail;
+  if (videoInfo.id) return `https://i.ytimg.com/vi/${videoInfo.id}/hqdefault.jpg`;
+  return null;
+}
+
 const getCookieArgs = () => {
   const config = loadConfig();
   if (config.cookieFilePath) {
@@ -62,7 +78,7 @@ router.get('/', async (req, res) => {
       uploader: videoInfo.uploader,
       upload_date: videoInfo.upload_date,
       view_count: videoInfo.view_count,
-      thumbnail: videoInfo.thumbnail,
+      thumbnail: pickBestThumbnail(videoInfo),
       webpage_url: videoInfo.webpage_url,
       extractor: videoInfo.extractor,
       formats: videoInfo.formats ? videoInfo.formats.map(format => ({

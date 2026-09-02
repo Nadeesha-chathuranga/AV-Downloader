@@ -24,6 +24,11 @@ win:
     - nsis
   icon: buildResources/icon.ico
 
+protocols:
+  - name: AV Downloader
+    schemes:
+      - avdownloader
+
 nsis:
   oneClick: false
   perMachine: false

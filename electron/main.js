@@ -7,26 +7,54 @@ const { createTray } = require('./tray');
 const { ensureBinaries } = require('./binary-downloader');
 const { initUpdater } = require('./updater');
 const { installContextMenu } = require('./contextMenu');
+const {
+  findDeepLink,
+  registerProtocol,
+  installDeepLinkHandlers,
+} = require('./deepLink');
+const { ClipboardWatcher } = require('./clipboardWatcher');
 
 let mainWindow = null;
 let tray = null;
 let appPort = null;
 let quitting = false;
+// Most recent media URL handed to the app via avdownloader:// link or the
+// clipboard watcher. Served once to the renderer on mount (see IPC below).
+let lastSharedUrl = null;
 
 // Give the app its product name so userData resolves to
 // %APPDATA%\AV Downloader (not the package.json `name`).
 app.setName('AV Downloader');
 
+// Register avdownloader:// so sharing a link opens the app (installed builds
+// also register it via electron-builder's `protocols` in electron-builder.yml).
+registerProtocol();
+
+// Polls the clipboard for freshly copied links ("Share -> Copy link" path).
+const clipboardWatcher = new ClipboardWatcher();
+
+function pushDeepLink(url) {
+  if (!url) return;
+  lastSharedUrl = url;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('deep-link', url);
+  }
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
 // --- Single instance ------------------------------------------------
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+  installDeepLinkHandlers({
+    getWindow: () => mainWindow,
+    onDeepLink: pushDeepLink,
   });
 
   app.on('before-quit', () => {
@@ -39,14 +67,35 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // --- Utilities ------------------------------------------------------
-function findFreePort() {
+// Chromium refuses to load URLs on restricted "unsafe" ports (IRC, SMTP,
+// echo, etc.). The embedded server must never bind one, or the app would
+// fail to load with ERR_UNSAFE_PORT after the splash.
+const UNSAFE_PORTS = new Set([
+  1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69,
+  77, 79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119,
+  123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515,
+  526, 530, 531, 532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990,
+  993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 5060, 5061, 6000, 6566,
+  6665, 6666, 6667, 6668, 6669, 6697, 10080,
+]);
+
+function findFreePort(attempts = 10) {
   return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.on('error', reject);
-    srv.listen(0, '127.0.0.1', () => {
-      const port = srv.address().port;
-      srv.close(() => resolve(port));
-    });
+    const tryBind = (remaining) => {
+      const srv = net.createServer();
+      srv.on('error', reject);
+      srv.listen(0, '127.0.0.1', () => {
+        const port = srv.address().port;
+        srv.close(() => {
+          if (UNSAFE_PORTS.has(port) || port < 1024) {
+            if (remaining > 0) return tryBind(remaining - 1);
+            return reject(new Error(`No safe port available after retries (last: ${port})`));
+          }
+          resolve(port);
+        });
+      });
+    };
+    tryBind(attempts);
   });
 }
 
@@ -80,6 +129,16 @@ async function main() {
   process.env.PORT = String(appPort);
   process.env.NODE_ENV = 'production';
   process.env.SEAL_DATA_DIR = app.getPath('userData');
+
+  // A deep link may arrive on the command line when the app is launched
+  // cold (e.g. a browser "Open AV Downloader?" prompt). Hand it to the
+  // renderer once it mounts; the clipboard watcher stays active meanwhile.
+  lastSharedUrl = findDeepLink(process.argv) || lastSharedUrl;
+  clipboardWatcher.setHandler((url) => {
+    showMainWindow();
+    pushDeepLink(url);
+  });
+  clipboardWatcher.setEnabled(true);
 
   const builtApp = path.join(__dirname, '..', 'client', 'dist', 'index.html');
   if (!fs.existsSync(builtApp)) {
@@ -194,10 +253,21 @@ function createWindow() {
 // --- IPC ------------------------------------------------------------
 ipcMain.handle('get-version', () => app.getVersion());
 ipcMain.handle('clipboard-read-text', () => clipboard.readText());
+ipcMain.handle('get-pending-deep-link', () => {
+  const url = lastSharedUrl;
+  lastSharedUrl = null;
+  return url;
+});
 ipcMain.handle('shell-open-external', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
     return shell.openExternal(url);
   }
+});
+
+// Clipboard-watch toggle synced from Settings (renderer pushes on mount and
+// on change). Defaults to enabled; the renderer applies the stored pref.
+ipcMain.on('set-clipboard-watch', (_event, enabled) => {
+  clipboardWatcher.setEnabled(Boolean(enabled));
 });
 
 // --- Tray -----------------------------------------------------------
