@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -158,6 +158,9 @@ const OPTION_GROUPS: OptionGroup[] = [
 
 const DownloadForm: React.FC = () => {
   const [url, setUrl] = useState('');
+  const urlRef = useRef(url);
+  urlRef.current = url;
+  const [pendingAutoFetch, setPendingAutoFetch] = useState(false);
   const handleUrlFocus = useCallback(async () => {
     if (url.trim()) return;
     const readClipboard = window.avDownloader?.getClipboardText;
@@ -400,6 +403,45 @@ const DownloadForm: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Shared/deep-linked URLs (avdownloader:// links or the clipboard watcher)
+  // always overwrite the field, then trigger Get Info automatically.
+  useEffect(() => {
+    const bridge = window.avDownloader;
+    if (!bridge) return undefined;
+    let mounted = true;
+
+    const applyExternalUrl = (text: string) => {
+      if (!mounted) return;
+      const value = (text || '').trim();
+      if (!value || !looksLikeUrl(value)) return;
+      if (urlRef.current.trim() === value) return;
+      setUrl(value);
+      setPendingAutoFetch(true);
+    };
+
+    bridge
+      .getPendingDeepLink()
+      .then((url) => {
+        if (url) applyExternalUrl(url);
+      })
+      .catch(() => {});
+
+    const dispose = bridge.onDeepLink(applyExternalUrl);
+    return () => {
+      mounted = false;
+      dispose();
+    };
+  }, []);
+
+  // Off-pending fetch: run once the external URL has landed in the form state.
+  useEffect(() => {
+    if (pendingAutoFetch && url.trim() && !loading) {
+      setPendingAutoFetch(false);
+      fetchVideoInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoFetch, url, loading]);
 
   const handleDownload = async () => {
     if (!url.trim()) {

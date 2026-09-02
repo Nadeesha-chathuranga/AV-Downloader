@@ -7,26 +7,54 @@ const { createTray } = require('./tray');
 const { ensureBinaries } = require('./binary-downloader');
 const { initUpdater } = require('./updater');
 const { installContextMenu } = require('./contextMenu');
+const {
+  findDeepLink,
+  registerProtocol,
+  installDeepLinkHandlers,
+} = require('./deepLink');
+const { ClipboardWatcher } = require('./clipboardWatcher');
 
 let mainWindow = null;
 let tray = null;
 let appPort = null;
 let quitting = false;
+// Most recent media URL handed to the app via avdownloader:// link or the
+// clipboard watcher. Served once to the renderer on mount (see IPC below).
+let lastSharedUrl = null;
 
 // Give the app its product name so userData resolves to
 // %APPDATA%\AV Downloader (not the package.json `name`).
 app.setName('AV Downloader');
 
+// Register avdownloader:// so sharing a link opens the app (installed builds
+// also register it via electron-builder's `protocols` in electron-builder.yml).
+registerProtocol();
+
+// Polls the clipboard for freshly copied links ("Share -> Copy link" path).
+const clipboardWatcher = new ClipboardWatcher();
+
+function pushDeepLink(url) {
+  if (!url) return;
+  lastSharedUrl = url;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('deep-link', url);
+  }
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
 // --- Single instance ------------------------------------------------
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+  installDeepLinkHandlers({
+    getWindow: () => mainWindow,
+    onDeepLink: pushDeepLink,
   });
 
   app.on('before-quit', () => {
@@ -80,6 +108,16 @@ async function main() {
   process.env.PORT = String(appPort);
   process.env.NODE_ENV = 'production';
   process.env.SEAL_DATA_DIR = app.getPath('userData');
+
+  // A deep link may arrive on the command line when the app is launched
+  // cold (e.g. a browser "Open AV Downloader?" prompt). Hand it to the
+  // renderer once it mounts; the clipboard watcher stays active meanwhile.
+  lastSharedUrl = findDeepLink(process.argv) || lastSharedUrl;
+  clipboardWatcher.setHandler((url) => {
+    showMainWindow();
+    pushDeepLink(url);
+  });
+  clipboardWatcher.setEnabled(true);
 
   const builtApp = path.join(__dirname, '..', 'client', 'dist', 'index.html');
   if (!fs.existsSync(builtApp)) {
@@ -194,10 +232,21 @@ function createWindow() {
 // --- IPC ------------------------------------------------------------
 ipcMain.handle('get-version', () => app.getVersion());
 ipcMain.handle('clipboard-read-text', () => clipboard.readText());
+ipcMain.handle('get-pending-deep-link', () => {
+  const url = lastSharedUrl;
+  lastSharedUrl = null;
+  return url;
+});
 ipcMain.handle('shell-open-external', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
     return shell.openExternal(url);
   }
+});
+
+// Clipboard-watch toggle synced from Settings (renderer pushes on mount and
+// on change). Defaults to enabled; the renderer applies the stored pref.
+ipcMain.on('set-clipboard-watch', (_event, enabled) => {
+  clipboardWatcher.setEnabled(Boolean(enabled));
 });
 
 // --- Tray -----------------------------------------------------------
