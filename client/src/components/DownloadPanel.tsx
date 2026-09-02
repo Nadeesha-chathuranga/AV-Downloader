@@ -625,7 +625,12 @@ const DownloadPanel: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: 'text.secondary' }}>
-            Are you sure you want to stop downloading <strong style={{ color: 'text.primary' }}>{cancelTarget?.name}</strong>?             The partially downloaded file will be deleted from disk.
+            Are you sure you want to cancel{" "}
+            <strong style={{ color: 'text.primary' }}>{cancelTarget?.name}</strong>?
+          </DialogContentText>
+          <DialogContentText sx={{ color: 'text.secondary', mt: 1 }}>
+            The partially downloaded file will be deleted from disk and{" "}
+            <strong style={{ color: 'text.primary' }}>cannot be resumed</strong>.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
@@ -650,7 +655,7 @@ const DownloadPanel: React.FC = () => {
             }}
             sx={{ fontWeight: 700 }}
           >
-            Stop Download
+            Cancel Download
           </Button>
         </DialogActions>
       </Dialog>
