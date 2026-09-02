@@ -959,7 +959,25 @@ const DownloadForm: React.FC = () => {
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', gap: 2.5 }}>
                 {videoInfo.thumbnail && (
-                  <Box component="img" src={videoInfo.thumbnail} alt="Thumbnail" sx={{ width: 160, height: 90, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }} />
+                  <Box
+                    component="img"
+                    src={videoInfo.thumbnail}
+                    alt="Thumbnail"
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      const cur = img.getAttribute('src') || '';
+                      const ytId = (videoInfo.webpage_url || '').match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1]
+                        || videoInfo.id;
+                      if (ytId && !cur.includes('hqdefault.jpg')) {
+                        img.src = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+                      } else {
+                        img.style.display = 'none';
+                      }
+                    }}
+                    sx={{ width: 160, height: 90, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }}
+                  />
                 )}
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>{videoInfo.title}</Typography>
