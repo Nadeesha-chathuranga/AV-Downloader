@@ -2,7 +2,7 @@
 
 A video/audio downloader powered by **yt-dlp** and **ffmpeg**, available two ways:
 
-- **Windows desktop app** (recommended) — an Electron-based installer that bundles everything and downloads `yt-dlp`/`ffmpeg` automatically on first run. No prerequisites needed.
+- **Windows desktop app** (recommended) — an Electron-based installer that bundles everything and downloads `yt-dlp`/`ffmpeg`/`deno` automatically on first run. No prerequisites needed.
 - **Web app** — run the backend + React frontend locally for development or self-hosting.
 
 Download media from thousands of sites through a modern, themeable React interface, with a queue, download persistence/resume, cookie support, and real-time progress over Socket.io.
@@ -39,7 +39,7 @@ Download media from thousands of sites through a modern, themeable React interfa
 
 The recommended way to use AV Downloader is the packaged desktop app.
 
-- **No prerequisites** — on first launch it downloads `yt-dlp` and `ffmpeg` into `%APPDATA%\AV Downloader\bin` (verified and cached; only fetched once), then opens the app.
+- **No prerequisites** — on first launch it downloads `yt-dlp`, `ffmpeg`, and `deno` (the JavaScript runtime yt-dlp needs to solve YouTube's JS challenges) into `%APPDATA%\AV Downloader\bin` (verified and cached; only fetched once), then opens the app.
 - **Installer** — `npm run dist` produces an NSIS `Setup` in `dist/` that installs per-user with a Start-menu/desktop shortcut.
 - **Runtime data** (`config`, `state`, user templates) lives under `%APPDATA%\AV Downloader`, separate from the installed program files.
 - **Updates** — installed builds check GitHub Releases via `electron-updater`. While the release repo is private the check is a silent no-op; making the repo public activates automatic updates with no code change.
@@ -53,7 +53,7 @@ The recommended way to use AV Downloader is the packaged desktop app.
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) v22+
-- For the web mode only: [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org) in your PATH
+- For the web mode only: [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org) in your PATH. For full YouTube support (JS challenges) yt-dlp also needs a supported JavaScript runtime (e.g. [deno](https://deno.com)) in your PATH.
 
 ### Install & Run
 
@@ -89,7 +89,7 @@ npm run dev
 Seal-Web-App/
 ├── electron/               Desktop app (Windows)
 │   ├── main.js             Electron entry: embedded server, window, tray
-│   ├── binary-downloader.js First-run yt-dlp/ffmpeg download + cache
+│   ├── binary-downloader.js First-run yt-dlp/ffmpeg/deno download + cache
 │   ├── updater.js          Auto-update wiring (silent while repo is private)
 │   ├── tray.js             System-tray integration
 │   ├── preload.js          Safe renderer bridge (avDownloader.*)

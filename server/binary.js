@@ -3,8 +3,9 @@
 // In development the tools are expected on PATH (or pointed at by the
 // environment). In the packaged desktop app the Electron main process
 // downloads them into userData/bin and exposes the locations via
-// YTDLP_PATH / FFMPEG_DIR; yt-dlp automatically picks ffmpeg/ffprobe up from
-// PATH, so we prepend the ffmpeg directory to PATH rather than passing
+// YTDLP_PATH / FFMPEG_DIR; yt-dlp automatically picks ffmpeg/ffprobe (and the
+// bundled deno JS runtime, needed to solve YouTube challenges) up from PATH,
+// so we prepend the bin directory to PATH rather than passing
 // --ffmpeg-location to every invocation.
 
 const path = require('path');
@@ -35,7 +36,10 @@ const buildEnv = () => {
 };
 
 const spawnYtDlp = (args, opts = {}) =>
-  spawn(resolveYtDlp(), args, {
+  spawn(resolveYtDlp(), [
+    '--remote-components', 'ejs:github',
+    ...args,
+  ], {
     windowsHide: true,
     ...opts,
     env: buildEnv(),

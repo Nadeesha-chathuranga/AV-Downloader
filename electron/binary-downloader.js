@@ -28,6 +28,10 @@ const FFMPEG_ZIPS = [
   'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip',
 ];
 
+const DENO_ZIP_URLS = [
+  'https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip',
+];
+
 const META_FILE = 'meta.json';
 
 const sha256File = (file) =>
@@ -113,7 +117,14 @@ const runVersion = (tool, exe) =>
     const check = (attempt) => {
       execFile(exe, [flag], { timeout: 30000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 }, (err, stdout, stderr) => {
         const out = `${stdout || ''}\n${stderr || ''}`;
-        const ok = tool === 'ffmpeg' ? /ffmpeg version/i.test(out) : /20\d{2}\.\d{1,2}\.\d{1,2}/.test(out);
+        let ok;
+        if (tool === 'ffmpeg') {
+          ok = /ffmpeg version/i.test(out);
+        } else if (tool === 'deno') {
+          ok = /^deno\s+\d+\.\d+/m.test(out);
+        } else {
+          ok = /20\d{2}\.\d{1,2}\.\d{1,2}/.test(out);
+        }
         if (!ok && attempt < 1) return setTimeout(() => check(attempt + 1), 1200);
         resolve(ok);
       });
@@ -133,6 +144,18 @@ const extractZip = (zipFile, outDir) => {
     if (!entry) throw new Error(`Missing ${bin} in ${path.basename(zipFile)}`);
     fs.writeFileSync(path.join(outDir, bin), entry.getData());
   }
+};
+
+const extractDenoZip = (zipFile, outDir) => {
+  const zip = new AdmZip(zipFile);
+  const entries = zip.getEntries();
+  const entry = entries.find((e) => {
+    if (e.isDirectory) return false;
+    const n = e.entryName.replace(/\\/g, '/');
+    return n.toLowerCase() === 'deno.exe' || n.toLowerCase().endsWith('/deno.exe');
+  });
+  if (!entry) throw new Error('Missing deno.exe in deno zip');
+  fs.writeFileSync(path.join(outDir, 'deno.exe'), entry.getData());
 };
 
 const ensureBinaries = async (binDir, emit = () => {}) => {
@@ -202,6 +225,41 @@ const ensureBinaries = async (binDir, emit = () => {}) => {
         }
       }
       if (!ffmpegValid) throw lastError || new Error('Failed to obtain ffmpeg');
+    }
+
+    // --- deno (JS runtime for YouTube challenges) -----------------------
+    const denoPath = path.join(binDir, 'deno.exe');
+    emit({ status: 'preparing', message: 'Checking deno…' });
+    let denoValid = false;
+    if (fs.existsSync(denoPath) && meta.deno && (await sha256File(denoPath)) === meta.deno) {
+      denoValid = await runVersion('deno', denoPath);
+    }
+    if (!denoValid) {
+      emit({ status: 'downloading', item: 'deno', message: 'Downloading deno…', percent: 0 });
+      let lastError = null;
+      for (const url of DENO_ZIP_URLS) {
+        try {
+          const zipTmp = path.join(binDir, '.deno-download.zip');
+          const dl = await downloadFile(url, zipTmp, (p) =>
+            emit({ status: 'downloading', item: 'deno', message: 'Downloading deno…', percent: p })
+          );
+          emit({ status: 'preparing', message: 'Extracting deno…' });
+          extractDenoZip(zipTmp, binDir);
+          fs.removeSync(zipTmp);
+          fs.removeSync(zipTmp + '.part');
+          meta.deno = await sha256File(denoPath);
+          denoValid = await runVersion('deno', denoPath);
+          if (denoValid) break;
+          lastError = new Error('deno binary does not run');
+        } catch (e) {
+          lastError = e;
+        }
+      }
+      if (!denoValid) {
+        // Deno is non-fatal — YouTube downloads will degrade but other sites
+        // still work. Emit a warning instead of blocking startup.
+        emit({ status: 'warning', message: 'Could not obtain deno — YouTube downloads may be limited.' });
+      }
     }
 
     meta.installedAt = new Date().toISOString();

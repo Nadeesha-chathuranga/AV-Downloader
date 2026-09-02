@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, clipboard, ipcMain } = require('electron');
 const path = require('path');
 const net = require('net');
 const http = require('http');
@@ -6,6 +6,7 @@ const fs = require('fs-extra');
 const { createTray } = require('./tray');
 const { ensureBinaries } = require('./binary-downloader');
 const { initUpdater } = require('./updater');
+const { installContextMenu } = require('./contextMenu');
 
 let mainWindow = null;
 let tray = null;
@@ -73,7 +74,7 @@ function waitForServer(port, tries = 100) {
 
 // --- Main flow ------------------------------------------------------
 async function main() {
-  app.setAppUserModelId('com.avdownloader.app');
+  app.setAppUserModelId(app.isPackaged ? 'com.avdownloader.app' : 'com.avdownloader.dev');
 
   appPort = await findFreePort();
   process.env.PORT = String(appPort);
@@ -89,7 +90,7 @@ async function main() {
   createWindow();
   await waitForSplash();
 
-  // Prepare yt-dlp/ffmpeg before the app loads so no download can start
+  // Prepare yt-dlp/ffmpeg/deno before the app loads so no download can start
   // without the binaries. Progress streams to the splash window.
   const binResult = await ensureBinaries(path.join(app.getPath('userData'), 'bin'), (status) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -161,6 +162,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     title: 'AV Downloader',
+    icon: path.join(__dirname, '..', 'buildResources', 'icon.ico'),
     backgroundColor: '#0a0a0f',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -172,6 +174,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'loading.html'));
+  installContextMenu(mainWindow);
 
   // Close-to-tray behaviour.
   mainWindow.on('close', (e) => {
@@ -190,6 +193,7 @@ function createWindow() {
 
 // --- IPC ------------------------------------------------------------
 ipcMain.handle('get-version', () => app.getVersion());
+ipcMain.handle('clipboard-read-text', () => clipboard.readText());
 ipcMain.handle('shell-open-external', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
     return shell.openExternal(url);
