@@ -113,7 +113,7 @@ const Header: React.FC = () => {
                   textTransform: 'uppercase',
                 }}
               >
-                Video & Audio Downloader
+                Audio & Video Downloader
               </Typography>
             </Box>
           </Box>

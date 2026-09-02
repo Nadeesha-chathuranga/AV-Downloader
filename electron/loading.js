@@ -1,5 +1,5 @@
 /* Drives the loading splash shown while the app boots (and, from Phase 3,
-   while yt-dlp/ffmpeg binaries are prepared). */
+   while yt-dlp/ffmpeg/deno binaries are prepared). */
 (function () {
   const statusEl = document.getElementById('status');
   const spinnerEl = document.getElementById('spinner');
@@ -19,6 +19,10 @@
     }
     if (data.status === 'done') {
       setStatus(data.message || 'Ready.', 'ready');
+      return;
+    }
+    if (data.status === 'warning') {
+      setStatus(data.message || '', 'warning');
       return;
     }
     // { status: 'downloading'|'preparing', message, percent? }

@@ -396,6 +396,12 @@ export const themes: AppTheme[] = [
   },
 ];
 
+export const DEFAULT_THEME_ID = 'sky';
+
 export const getThemeById = (id: string): AppTheme => {
-  return themes.find((t) => t.id === id) || themes[0];
+  return (
+    themes.find((t) => t.id === id) ||
+    themes.find((t) => t.id === DEFAULT_THEME_ID) ||
+    themes[0]
+  );
 };

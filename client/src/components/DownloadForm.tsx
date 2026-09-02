@@ -89,6 +89,11 @@ const isPlaylistUrl = (url: string): boolean => {
   return playlistPatterns.some((pattern) => pattern.test(url));
 };
 
+const looksLikeUrl = (text: string): boolean =>
+  /^https?:\/\/\S+/i.test(text) ||
+  /^www\.\S+/i.test(text) ||
+  /^(?:[a-z0-9-]+\.)+[a-z]{2,}\/\S*/i.test(text);
+
 interface OptionDef {
   id: string;
   label: string;
@@ -153,6 +158,19 @@ const OPTION_GROUPS: OptionGroup[] = [
 
 const DownloadForm: React.FC = () => {
   const [url, setUrl] = useState('');
+  const handleUrlFocus = useCallback(async () => {
+    if (url.trim()) return;
+    const readClipboard = window.avDownloader?.getClipboardText;
+    if (!readClipboard) return;
+    try {
+      const text = (await readClipboard()).trim();
+      if (text && looksLikeUrl(text)) {
+        setUrl(text);
+      }
+    } catch {
+      // ignore clipboard read failures
+    }
+  }, [url]);
   const [audioOnly, setAudioOnly] = useState(false);
   const [format, setFormat] = useState('mp3');
   const [quality, setQuality] = useState('720');
@@ -539,6 +557,7 @@ const DownloadForm: React.FC = () => {
             placeholder="https://www.youtube.com/watch?v=... or playlist?list=..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onFocus={handleUrlFocus}
             InputProps={{
               startAdornment: <LinkIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />,
             }}

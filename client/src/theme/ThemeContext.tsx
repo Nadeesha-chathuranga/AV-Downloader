@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
-import { AppTheme, themes, getThemeById } from './themes';
+import { AppTheme, themes, getThemeById, DEFAULT_THEME_ID } from './themes';
 
 interface ThemeContextType {
   currentTheme: AppTheme;
@@ -10,7 +10,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  currentTheme: themes[0],
+  currentTheme: getThemeById(DEFAULT_THEME_ID),
   setTheme: () => {},
   allThemes: themes,
 });
@@ -22,7 +22,7 @@ const STORAGE_KEY = 'av-downloader-theme';
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeId, setThemeId] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved || 'cyberpunk';
+    return saved || DEFAULT_THEME_ID;
   });
 
   useEffect(() => {

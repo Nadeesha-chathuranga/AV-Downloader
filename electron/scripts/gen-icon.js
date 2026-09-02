@@ -24,12 +24,13 @@ const ICO = path.join(ROOT, 'buildResources', 'icon.ico');
   const ico = await toIco([png256]);
   fs.writeFileSync(ICO, ico);
 
+  // 32px tray icon shipped inside electron/ (packaged in the asar).
   const tray = await sharp(png512).resize(32, 32).png().toBuffer();
-  fs.writeFileSync(path.join(ROOT, 'buildResources', 'tray.png'), tray);
+  fs.writeFileSync(path.join(ROOT, 'electron', 'tray.png'), tray);
 
   console.log('Generated', PNG, png512.length, 'bytes');
   console.log('Generated', ICO, ico.length, 'bytes');
-  console.log('Generated', path.join(ROOT, 'buildResources', 'tray.png'), tray.length, 'bytes');
+  console.log('Generated', path.join(ROOT, 'electron', 'tray.png'), tray.length, 'bytes');
 })().catch((err) => {
   console.error('icon generation failed:', err);
   process.exit(1);
