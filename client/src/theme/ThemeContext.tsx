@@ -71,6 +71,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Theme-driven CSS variables so app stylesheets can use
                 // adaptive translucent colors on both light and dark themes.
                 '--theme-border': currentTheme.colors.border,
+                '--primary-color': currentTheme.colors.primary,
                 '--theme-scrollbar': isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.12)',
                 '--theme-scrollbar-hover': isLight ? 'rgba(0, 0, 0, 0.28)' : 'rgba(255, 255, 255, 0.24)',
                 '--theme-card-border': isLight ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.08)',

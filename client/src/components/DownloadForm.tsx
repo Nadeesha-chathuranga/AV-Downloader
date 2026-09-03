@@ -503,6 +503,7 @@ const DownloadForm: React.FC = () => {
       const urls = selectedEntries.map((e) => e.url);
       const response = await axios.post(`${apiUrl}/download/playlist`, {
         urls,
+        customArgs: customArgs.trim() || undefined,
         format: audioOnly ? format : undefined,
         quality: !audioOnly ? quality : undefined,
         audioOnly,
