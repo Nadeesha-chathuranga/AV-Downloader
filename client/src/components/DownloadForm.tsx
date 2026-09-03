@@ -575,7 +575,7 @@ const DownloadForm: React.FC = () => {
       sx={{ mb: 3, animation: 'fadeIn 0.5s ease', overflow: 'visible' }}
     >
       <CardContent sx={{ p: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
           <Box
             sx={{
               width: 40, height: 40, borderRadius: 1.5,
@@ -595,7 +595,7 @@ const DownloadForm: React.FC = () => {
           </Box>
         </Box>
 
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           <TextField
             fullWidth
             label="Video / Playlist URL"
@@ -637,7 +637,7 @@ const DownloadForm: React.FC = () => {
             </Box>
           </Collapse>
 
-          <Box sx={{ mt: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          <Box sx={{ mt: 2, display: 'flex', gap: 1.5, alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button
                 variant="outlined"
@@ -668,7 +668,7 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         {/* Always-visible quality section */}
-        <Box sx={{ mb: 3, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+        <Box sx={{ p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Quality
@@ -734,7 +734,7 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         <Collapse in={showAdvanced}>
-          <Box sx={{ mb: 3, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+          <Box sx={{ mt: 2, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Options
             </Typography>

@@ -14,6 +14,7 @@ import {
   Warning as WarningIcon,
   Settings as SettingsIcon,
   MenuBook as MenuBookIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import SettingsDialog from './SettingsDialog';
@@ -25,6 +26,7 @@ const Header: React.FC = () => {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const { currentTheme } = useAppTheme();
 
   useEffect(() => {
@@ -160,6 +162,34 @@ const Header: React.FC = () => {
                 }}
               >
                 <MenuBookIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Reload App">
+              <IconButton
+                disabled={reloading}
+                onClick={() => {
+                  setReloading(true);
+                  setTimeout(() => setReloading(false), 3000);
+                  window.location.reload();
+                }}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  color: 'text.secondary',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 0.75,
+                  transition: 'all 0.2s ease',
+                  opacity: reloading ? 0.4 : 1,
+                  '&:hover': {
+                    color: currentTheme.colors.primary,
+                    borderColor: `${currentTheme.colors.primary}66`,
+                    background: `${currentTheme.colors.primary}11`,
+                    boxShadow: `0 0 12px ${currentTheme.colors.primary}22`,
+                  },
+                }}
+              >
+                <RefreshIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
             <Tooltip title="Settings">

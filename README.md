@@ -32,6 +32,8 @@ Download media from thousands of sites through a modern, themeable React interfa
 - **Browser cookies** — pull login cookies from your browser or a `cookies.txt` file to bypass restrictions (403s, age-gated content)
 - **20 themes** — 10 neon dark + 10 light, with glassmorphism styling
 - **Security hardening** — path-traversal protection, strict command-argument validation
+- **Share / deep-link integration (desktop)** — `avdownloader://` links and an optional clipboard watcher: copy a video URL and it auto-fills the field and fetches its info (toggle in Settings)
+- **Reload App button** — refresh the entire app from the top toolbar; disabled for a few seconds to prevent rapid repeated presses
 
 ---
 
