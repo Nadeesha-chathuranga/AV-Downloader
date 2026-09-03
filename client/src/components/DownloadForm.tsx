@@ -667,6 +667,9 @@ const DownloadForm: React.FC = () => {
           </Box>
         </Box>
 
+        {/* Quality + Options grouped so the expandable Collapse can't add a
+            second margin gap (it breaks CSS margin collapsing when collapsed) */}
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         {/* Always-visible quality section */}
         <Box sx={{ mb: 2, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -939,6 +942,7 @@ const DownloadForm: React.FC = () => {
             </Box>
           </Box>
         </Collapse>
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.error}15`, border: `1px solid ${currentTheme.colors.error}33` }}>
