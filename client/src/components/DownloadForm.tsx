@@ -667,11 +667,8 @@ const DownloadForm: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Quality + Options grouped so the expandable Collapse can't add a
-            second margin gap (it breaks CSS margin collapsing when collapsed) */}
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         {/* Always-visible quality section */}
-        <Box sx={{ mb: 2, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+        <Box sx={{ p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Quality
@@ -737,7 +734,7 @@ const DownloadForm: React.FC = () => {
         </Box>
 
         <Collapse in={showAdvanced}>
-          <Box sx={{ mb: 2, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
+          <Box sx={{ mt: 2, p: 2.5, borderRadius: 1.5, background: `${currentTheme.colors.surfaceAlt}66`, border: `1px solid ${currentTheme.colors.border}` }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
               Options
             </Typography>
@@ -942,7 +939,6 @@ const DownloadForm: React.FC = () => {
             </Box>
           </Box>
         </Collapse>
-        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.error}15`, border: `1px solid ${currentTheme.colors.error}33` }}>
