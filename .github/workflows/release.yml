@@ -40,6 +40,27 @@ jobs:
           # CSC_LINK: ${{ secrets.CSC_LINK }}
           # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
+      - name: Consolidate orphan draft releases
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $headers = @{ "Authorization" = "Bearer $env:GITHUB_TOKEN"; "Accept" = "application/vnd.github+json" }
+          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers $headers
+          $dups = @($rel | Where-Object { $_.tag_name -eq $tag -and $_.draft })
+          if ($dups.Count -le 1) {
+            Write-Host "No duplicate drafts for $tag to clean up (found $($dups.Count))."
+            exit 0
+          }
+          $keep = $dups | Sort-Object { $_.assets.Count } -Descending | Select-Object -First 1
+          Write-Host "Keeping release $($keep.id) with $($keep.assets.Count) assets."
+          foreach ($d in $dups) {
+            if ($d.id -eq $keep.id) { continue }
+            Write-Host "Deleting orphan draft $($d.id) ($($d.name), assets=$($d.assets.Count))."
+            Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/$($d.id)" -Headers $headers
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
