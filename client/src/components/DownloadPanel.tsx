@@ -456,7 +456,7 @@ const DownloadPanel: React.FC = () => {
                       sx={{
                         color: currentTheme.colors.warning,
                         mt: 0.5,
-                        '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.6rem' },
+                        '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.65rem' },
                         '& .MuiSlider-thumb': {
                           width: 14,
                           height: 14,

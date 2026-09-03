@@ -202,7 +202,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ entries, onDownload, load
                           width: 48,
                           height: 28,
                           background: `${currentTheme.colors.surfaceAlt}`,
-                          fontSize: '0.6rem',
+                          fontSize: '0.65rem',
                           fontWeight: 700,
                         }}
                       >

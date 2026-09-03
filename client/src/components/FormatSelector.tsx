@@ -231,7 +231,7 @@ const FormatSelector: React.FC<FormatSelectorProps> = ({
                             size="small"
                             sx={{
                               height: 18,
-                              fontSize: '0.6rem',
+                              fontSize: '0.65rem',
                               fontWeight: 700,
                               background: `${currentTheme.colors.secondary}22`,
                               color: currentTheme.colors.secondary,

@@ -132,7 +132,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ open, template, onClose
           disabled={template?.builtIn}
           sx={{
             fontFamily: 'monospace',
-            '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.9rem' },
+            '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.85rem' },
           }}
         />
 
