@@ -31,6 +31,7 @@ Download media from thousands of sites through a modern, themeable React interfa
 - **Audio metadata** — auto-embeds title/artist/thumbnail for audio-only downloads; estimated final audio file size shown while downloading
 - **Browser cookies** — pull login cookies from your browser or a `cookies.txt` file to bypass restrictions (403s, age-gated content)
 - **20 themes** — 10 neon dark + 10 light, with glassmorphism styling
+- **Self-hosted typography** — bundles the Inter (UI) and JetBrains Mono (code/args) fonts locally, so the UI renders correctly and works fully offline with no external font requests
 - **Security hardening** — path-traversal protection, strict command-argument validation
 - **Share / deep-link integration (desktop)** — `avdownloader://` links and an optional clipboard watcher: copy a video URL and it auto-fills the field and fetches its info (toggle in Settings)
 - **Reload App button** — refresh the entire app from the top toolbar; disabled for a few seconds to prevent rapid repeated presses
@@ -196,7 +197,9 @@ The server hardens yt-dlp usage, which is an attack surface since it fetches arb
 - **Path traversal protection** — `DELETE /api/download/:filename` normalizes the path and only deletes regular files inside the downloads directory.
 - **Command-argument validation** — custom arguments are tokenized and reject dangerous flags (`--exec`, `--rm`, `--output`/`-o`, `--paths`/`-P`, `--path`, `--write-config`, etc.) to prevent file-overwrite and shell-injection vectors.
 - **Bounded child processes** — metadata probes run under a shared concurrency semaphore with hard timeouts so request bursts can't fork unbounded processes.
-- **Graceful shutdown** — on `SIGINT`/`SIGTERM` the server terminates in-flight yt-dlp/ffmpeg child processes before exiting, so no orphaned downloads keep writing files.
+- **Graceful shutdown** — on `SIGINT`/`SIGTERM` (and on app quit in the desktop build) the server terminates in-flight yt-dlp/ffmpeg child processes before exiting, so no orphaned downloads keep writing files.
+- **Loopback-only binding in production** — the packaged/server build listens on `127.0.0.1`, not `0.0.0.0`, so the local downloader is never exposed to the LAN.
+- **Request limits & strict API 404s** — JSON/URL-encoded bodies are size-limited (`1mb`) and unknown `/api` routes return a JSON 404 instead of falling through to the app shell.
 - **Dependency middleware** — helmet (secure headers), morgan (request logging), and restricted CORS origins.
 
 > **Note:** No URL/SSRF blocking is applied to download URLs. The app is a local/personal downloader and intentionally accepts any URL, so it can download from any site without false positives.
