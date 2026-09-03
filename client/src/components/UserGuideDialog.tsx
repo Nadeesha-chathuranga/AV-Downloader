@@ -21,6 +21,7 @@ import {
   Settings as SettingsIcon,
   Moving as ActiveIcon,
   Help as FaqIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAppTheme } from '../theme/ThemeContext';
 
@@ -57,6 +58,29 @@ const UserGuideDialog: React.FC<UserGuideDialogProps> = ({ open, onClose }) => {
           <li>
             <Typography variant="body2">
               Paste any supported URL to get started, then click <strong>Download</strong>.
+            </Typography>
+          </li>
+        </Box>
+      ),
+    },
+    {
+      icon: <RefreshIcon sx={{ fontSize: 18, color: currentTheme.colors.info }} />,
+      title: 'Header Toolbar',
+      body: (
+        <Box component="ul" sx={{ m: 0, pl: 2.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+          <li>
+            <Typography variant="body2">
+              The <strong>Online / Offline</strong> chip shows the backend connection status. If it displays Offline, ensure the server is running with <code>npm run dev</code>.
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body2">
+              The <strong>Reload button</strong> reloads the entire app. Use it if the UI becomes unresponsive or the connection drops. The button is disabled for 3 seconds after pressing to prevent rapid repeated clicks.
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body2">
+              The <strong>User Guide</strong> and <strong>Settings</strong> buttons open their respective dialogs for help and configuration.
             </Typography>
           </li>
         </Box>
@@ -220,6 +244,11 @@ const UserGuideDialog: React.FC<UserGuideDialogProps> = ({ open, onClose }) => {
               <strong>Browser Cookies</strong>: pull login cookies from your browser (Firefox works automatically while logged in; Chrome/Edge/Brave/Opera/Vivaldi need the &ldquo;Get cookies.txt LOCALLY&rdquo; extension). This helps with YouTube 403 errors and age-restricted content. Use <strong>Test Cookies</strong> to verify.
             </Typography>
           </li>
+          <li>
+            <Typography variant="body2">
+              <strong>Sharing &amp; Integration</strong>: enable <strong>Detect copied video links</strong> &mdash; in the desktop app, copying a video URL auto-fills the field and fetches its info.
+            </Typography>
+          </li>
         </Box>
       ),
     },
@@ -267,6 +296,11 @@ const UserGuideDialog: React.FC<UserGuideDialogProps> = ({ open, onClose }) => {
           <li>
             <Typography variant="body2">
               <strong>File size seems incomplete</strong>: some sources (live streams / HLS) do not report their total size up front, so the size shown is an estimate updated as the download proceeds.
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body2">
+              <strong>App feels unresponsive</strong>: click the <strong>Reload button</strong> in the top-right toolbar to refresh the whole app, or close and relaunch it.
             </Typography>
           </li>
         </Box>
