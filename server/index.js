@@ -60,8 +60,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Serve static files from Vite build in production
 if (process.env.NODE_ENV === 'production') {
@@ -125,6 +125,11 @@ const shutdown = () => {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
+// JSON 404 for unknown /api paths (before the SPA catch-all below).
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
@@ -138,9 +143,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-server.listen(PORT, () => {
+// In production (the Electron embedded server) the service is local-only, so
+// bind to loopback to keep it off the LAN. Standalone dev mode keeps the
+// previous all-interfaces default for local tooling.
+const bindHost = process.env.NODE_ENV === 'production' ? '127.0.0.1' : undefined;
+server.listen(PORT, bindHost, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 module.exports = app;
+// Export a children-only shutdown hook for the Electron main process. On
+// Windows the app never receives SIGINT/SIGTERM, so without this, closing the
+// app mid-download would orphan the native yt-dlp/ffmpeg child processes.
+module.exports.shutdownChildren = () => {
+  if (typeof downloadRouter.shutdown === 'function') {
+    try { downloadRouter.shutdown(); }
+    catch (e) { console.error('Shutdown error:', e.message); }
+  }
+};

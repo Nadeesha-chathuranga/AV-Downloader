@@ -61,6 +61,21 @@ if (!app.requestSingleInstanceLock()) {
     quitting = true;
   });
 
+  // Terminate any in-flight yt-dlp/ffmpeg child processes before the process
+  // exits. On Windows no SIGINT/SIGTERM is delivered on quit, so without this
+  // the native download processes (which write files and consume bandwidth)
+  // would be orphaned and keep running after the app closes. The server is
+  // lazily required here because requiring it at module load would boot the
+  // embedded server before process.env.PORT is assigned.
+  app.on('will-quit', () => {
+    try {
+      const { shutdownChildren } = require('../server/index.js');
+      shutdownChildren();
+    } catch (e) {
+      console.error('[MAIN] Error terminating downloads on quit:', e.message);
+    }
+  });
+
   app.whenReady().then(() => {
     main();
   });

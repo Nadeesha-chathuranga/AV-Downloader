@@ -456,7 +456,7 @@ const DownloadPanel: React.FC = () => {
                       sx={{
                         color: currentTheme.colors.warning,
                         mt: 0.5,
-                        '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.6rem' },
+                        '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.65rem' },
                         '& .MuiSlider-thumb': {
                           width: 14,
                           height: 14,
@@ -626,11 +626,11 @@ const DownloadPanel: React.FC = () => {
         <DialogContent>
           <DialogContentText sx={{ color: 'text.secondary' }}>
             Are you sure you want to cancel{" "}
-            <strong style={{ color: 'text.primary' }}>{cancelTarget?.name}</strong>?
+            <strong style={{ color: 'var(--mui-palette-text-primary)' }}>{cancelTarget?.name}</strong>?
           </DialogContentText>
           <DialogContentText sx={{ color: 'text.secondary', mt: 1 }}>
             The partially downloaded file will be deleted from disk and{" "}
-            <strong style={{ color: 'text.primary' }}>cannot be resumed</strong>.
+            <strong style={{ color: 'var(--mui-palette-text-primary)' }}>cannot be resumed</strong>.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>

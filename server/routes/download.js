@@ -5,7 +5,7 @@ const os = require('os');
 const fs = require('fs-extra');
 const router = express.Router();
 const state = require('../state');
-const { dataDir } = require('../paths');
+const { CONFIG_PATH } = require('../paths');
 const { spawnYtDlp } = require('../binary');
 
 const DOWNLOAD_FOLDER = 'AV Downloader';
@@ -20,8 +20,6 @@ const DANGEROUS_FLAGS = [
   // would permit arbitrary file writes anywhere on disk.
   '--output', '--paths', '--path', '-o',
 ];
-
-const CONFIG_PATH = path.join(dataDir(), 'config.json');
 
 const loadConfig = () => {
   try {
@@ -697,11 +695,16 @@ router.post('/', async (req, res) => {
 // POST /api/download/playlist
 router.post('/playlist', async (req, res) => {
   try {
-    const { urls, format, quality, audioOnly, embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat } = req.body;
+    const { urls, format, quality, audioOnly, customArgs, embedMetadata, embedThumbnail, writeSubs, embedSubs, subLang, subFormat } = req.body;
     const io = req.app.get('socketio');
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({ error: 'urls array is required' });
+    }
+
+    if (customArgs) {
+      const validation = validateCustomArgs(customArgs);
+      if (!validation.valid) return res.status(400).json({ error: validation.error });
     }
 
     const downloadsDir = getDownloadsDir();
@@ -719,6 +722,10 @@ router.post('/playlist', async (req, res) => {
       const args = [];
       args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
       args.push('--add-header', 'Accept-Language:en-US,en;q=0.9');
+
+      if (customArgs) {
+        args.push(...parseCustomArgs(customArgs));
+      }
 
       if (config.cookieFilePath) {
         args.push('--cookies', config.cookieFilePath);

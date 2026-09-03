@@ -34,8 +34,10 @@ npm run gen:icon # regen icon.ico if buildResources/icon.svg changed
 npm run dist     # electron-builder --win
 ```
 
-Version is read from `package.json` (`1.0.0` today). Bump `version` before each
-release; tag the release `v<version>`.
+Version is read from `package.json` (currently `1.0.2`). Bump `version` before
+each release; tag the release `v<version>`. The installer's version and the
+`latest.yml` update manifest are both derived from it, so the tag and
+`package.json` must always agree (a mismatch would break the update diff).
 
 ## Code signing
 
@@ -77,11 +79,13 @@ Use a certificate with a trust chain (e.g. DigiCert/GlobalSign OV) so the
    release is signed automatically.
 4. Installer, `latest.yml`, and `.blockmap` uploaded as a workflow artifact.
 
-To release:
+To release (releases are cut from `main`, so first merge `dev01` into `main` via
+a PR):
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+# 1. Bump package.json version, commit, and push
+git tag v<version>            # e.g. v1.0.2 — on main, after the merge
+git push origin v<version>
 ```
 
 electron-builder then creates a GitHub Release from the tag and attaches the

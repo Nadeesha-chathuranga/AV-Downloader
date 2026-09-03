@@ -65,7 +65,6 @@ const DownloadHistory: React.FC = () => {
       if (error?.code === 'ERR_CANCELED' || controller.signal.aborted) return;
       if (seq === requestSeqRef.current) {
         setError(error.response?.data?.error || 'Failed to load download history');
-        setFiles((prev) => prev);
       }
     } finally {
       if (seq === requestSeqRef.current && !silent) setLoading(false);
@@ -306,12 +305,12 @@ const DownloadHistory: React.FC = () => {
           </Box>
         ) : (
           <List disablePadding>
-            {visibleFiles.map((file, index) => {
+            {visibleFiles.map((file) => {
               const fileType = getFileType(file.name);
               const typeStyle = getFileTypeStyle(fileType);
               return (
                 <ListItem
-                  key={index}
+                  key={`${file.name}-${file.folder}`}
                   sx={{
                     mb: 1,
                     borderRadius: 1,

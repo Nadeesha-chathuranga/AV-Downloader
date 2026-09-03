@@ -503,6 +503,7 @@ const DownloadForm: React.FC = () => {
       const urls = selectedEntries.map((e) => e.url);
       const response = await axios.post(`${apiUrl}/download/playlist`, {
         urls,
+        customArgs: customArgs.trim() || undefined,
         format: audioOnly ? format : undefined,
         quality: !audioOnly ? quality : undefined,
         audioOnly,
@@ -848,7 +849,7 @@ const DownloadForm: React.FC = () => {
                             onClick={() => toggleOption(opt.args)}
                             sx={{
                               fontWeight: 600,
-                              fontSize: '0.72rem',
+                              fontSize: '0.75rem',
                               height: 28,
                               borderRadius: 1,
                               cursor: 'pointer',
@@ -941,7 +942,7 @@ const DownloadForm: React.FC = () => {
         </Collapse>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.error}15`, border: `1px solid ${currentTheme.colors.error}33` }}>
+          <Alert severity="error" sx={{ mt: 2, mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.error}15`, border: `1px solid ${currentTheme.colors.error}33` }}>
             {error}
           </Alert>
         )}
@@ -949,7 +950,7 @@ const DownloadForm: React.FC = () => {
         {success && (
           <Alert
             severity="success"
-            sx={{ mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.success}15`, border: `1px solid ${currentTheme.colors.success}33` }}
+            sx={{ mt: 2, mb: 2, borderRadius: 1.5, background: `${currentTheme.colors.success}15`, border: `1px solid ${currentTheme.colors.success}33` }}
             action={
               <IconButton aria-label="close" size="small" onClick={() => setSuccess('')} sx={{ color: 'inherit' }}>
                 <CloseIcon fontSize="small" />

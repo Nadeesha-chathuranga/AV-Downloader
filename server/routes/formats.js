@@ -4,7 +4,20 @@
 
 const express = require('express');
 const router = express.Router();
+const fs = require('fs-extra');
 const { runProbe } = require('../security');
+const { CONFIG_PATH } = require('../paths');
+
+const loadConfig = () => {
+  try { if (fs.existsSync(CONFIG_PATH)) return fs.readJsonSync(CONFIG_PATH); }
+  catch {} return {};
+};
+
+const getCookieArgs = (config) => {
+  if (config.cookieFilePath) return ['--cookies', config.cookieFilePath];
+  if (config.cookieBrowser) return ['--cookies-from-browser', config.cookieBrowser];
+  return [];
+};
 
 // GET /api/formats?url=<video_url> - Get available formats for a video
 router.get('/', async (req, res) => {
@@ -13,9 +26,11 @@ router.get('/', async (req, res) => {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
 
+  const config = loadConfig();
   const args = [
     '--dump-json',
     '--no-playlist',
+    ...getCookieArgs(config),
     url,
   ];
 

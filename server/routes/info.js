@@ -5,12 +5,10 @@
 // targets don't wedge the server.
 
 const express = require('express');
-const path = require('path');
 const fs = require('fs-extra');
 const router = express.Router();
 const { runProbe } = require('../security');
-
-const CONFIG_PATH = path.join(__dirname, '../config.json');
+const { CONFIG_PATH } = require('../paths');
 
 const loadConfig = () => {
   try {

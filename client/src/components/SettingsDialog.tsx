@@ -379,14 +379,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
             }))}
             sx={{
               color: currentTheme.colors.info,
-              '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.6rem' },
+              '& .MuiSlider-markLabel': { color: 'text.secondary', fontSize: '0.65rem' },
             }}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
               Unlimited
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
               Manual
             </Typography>
           </Box>
@@ -545,7 +545,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
               placeholder="Paste download location here"
               sx={{
                 '& .MuiOutlinedInput-root': { height: 40, borderRadius: 0.75, fontSize: '0.85rem' },
-                '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+                '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.85rem' },
               }}
             />
           </Box>
@@ -594,7 +594,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                         background: `${currentTheme.colors.success}22`,
                         border: `1px solid ${currentTheme.colors.success}55`,
                       }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: currentTheme.colors.success }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 700, color: currentTheme.colors.success }}>
                           RECOMMENDED
                         </Typography>
                       </Box>
@@ -608,7 +608,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                         background: `${currentTheme.colors.warning}22`,
                         border: `1px solid ${currentTheme.colors.warning}55`,
                       }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 700, color: currentTheme.colors.warning }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 700, color: currentTheme.colors.warning }}>
                           REQUIRES EXPORT
                         </Typography>
                       </Box>
@@ -713,7 +713,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                   placeholder="C:\Users\You\Downloads\cookies.txt"
                   sx={{
                     '& .MuiOutlinedInput-root': { borderRadius: 0.75, fontSize: '0.85rem' },
-                    '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+                    '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.85rem' },
                   }}
                 />
               </Box>
@@ -737,7 +737,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
                 placeholder="C:\Users\You\cookies.txt"
                 sx={{
                   '& .MuiOutlinedInput-root': { borderRadius: 0.75, fontSize: '0.85rem' },
-                  '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.8rem' },
+                  '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.85rem' },
                 }}
               />
             </Box>
