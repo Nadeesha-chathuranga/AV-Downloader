@@ -73,17 +73,40 @@ router.get('/', async (req, res) => {
     const videoFormats = formats.filter(f => f.type === 'video' || f.type === 'video-only');
     const audioFormats = formats.filter(f => f.type === 'audio');
 
-    const bestVideo = videoFormats.reduce((best, f) => {
-      if (!best || (f.height && (!best.height || f.height > best.height))) return f;
-      if (f.tbr && (!best.tbr || f.tbr > best.tbr)) return f;
-      return best;
-    }, null);
-
     const bestAudio = audioFormats.reduce((best, f) => {
       if (!best || (f.abr && (!best.abr || f.abr > best.abr))) return f;
       if (f.tbr && (!best.tbr || f.tbr > best.tbr)) return f;
       return best;
     }, null);
+
+    // Prefer 720p H.264, then 720p any codec, then step down to the nearest
+    // height <= 720, then the lowest height above 720. Never auto-"best".
+    const pickPreferredVideo = (list) => {
+      const isH264 = (f) => f.vcodec && f.vcodec !== 'none' && f.vcodec.startsWith('avc1');
+      const byTbr = (a, b) => (b.tbr || 0) - (a.tbr || 0);
+      const video = list.filter((f) => f.height);
+      if (video.length === 0) return null;
+
+      const h720 = video.filter((f) => f.height === 720);
+      if (h720.some(isH264)) return h720.filter(isH264).sort(byTbr)[0];
+      if (h720.length > 0) return [...h720].sort(byTbr)[0];
+
+      const belowOrEqual = video.filter((f) => f.height <= 720).sort((a, b) => b.height - a.height);
+      if (belowOrEqual.length > 0) {
+        const top = belowOrEqual[0].height;
+        const tier = belowOrEqual.filter((f) => f.height === top);
+        if (tier.some(isH264)) return tier.filter(isH264).sort(byTbr)[0];
+        return tier.sort(byTbr)[0];
+      }
+
+      const above = video.sort((a, b) => a.height - b.height);
+      const bottom = above[0].height;
+      const tier = above.filter((f) => f.height === bottom);
+      if (tier.some(isH264)) return tier.filter(isH264).sort(byTbr)[0];
+      return tier.sort(byTbr)[0];
+    };
+
+    const bestVideo = pickPreferredVideo(videoFormats);
 
     res.json({
       video_formats: videoFormats,
