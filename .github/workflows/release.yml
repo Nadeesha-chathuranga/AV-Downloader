@@ -51,8 +51,40 @@ jobs:
             Write-Host "No duplicate drafts for $tag to clean up (found $($dups.Count))."
             exit 0
           }
+
+          # electron-builder may split uploads across several drafts. Keep the
+          # draft with the most assets, then merge in any missing primary assets
+          # (exe, blockmap, latest.yml) from the local dist/ so nothing is lost.
           $keep = $dups | Sort-Object { $_.assets.Count } -Descending | Select-Object -First 1
           Write-Host "Keeping release $($keep.id) with $($keep.assets.Count) assets."
+          $keepNames = @($keep.assets | ForEach-Object { $_.name })
+
+          $files = Get-ChildItem -Path "dist" -File | Where-Object {
+            $_.Extension -eq ".exe" -or $_.Name -eq "latest.yml" -or $_.Extension -eq ".blockmap"
+          }
+          foreach ($f in $files) {
+            $remoteName = $f.Name -replace ' ', '-'
+            if ($keepNames -contains $remoteName) {
+              Write-Host "Asset already present on keeper: $remoteName"
+              continue
+            }
+            Write-Host "Uploading missing primary asset $remoteName to release $($keep.id)..."
+            $uri = "https://uploads.github.com/repos/$env:GITHUB_REPOSITORY/releases/$($keep.id)/assets?name=$([uri]::EscapeDataString($remoteName))"
+            $upload = @{
+              Uri = $uri
+              Method = "POST"
+              Headers = $headers
+              ContentType = "application/octet-stream"
+              Body = [System.IO.File]::OpenRead($f.FullName)
+            }
+            try {
+              Invoke-RestMethod @upload | Out-Null
+            } finally {
+              $upload.Body.Dispose()
+            }
+            $keepNames += $remoteName
+          }
+
           foreach ($d in $dups) {
             if ($d.id -eq $keep.id) { continue }
             Write-Host "Deleting orphan draft $($d.id) ($($d.name), assets=$($d.assets.Count))."
