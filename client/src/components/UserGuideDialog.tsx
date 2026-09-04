@@ -101,7 +101,7 @@ const UserGuideDialog: React.FC<UserGuideDialogProps> = ({ open, onClose }) => {
           </li>
           <li>
             <Typography variant="body2">
-              In the formats table use the <strong>Video</strong>, <strong>Audio</strong>, and <strong>All</strong> tabs. Each row shows codec, resolution, FPS, file size, and bitrate. Rows marked with a <strong>star</strong> are recommended. Click a row to select it.
+              In the formats table use the <strong>Video</strong>, <strong>Audio</strong>, and <strong>All</strong> tabs. Each row shows codec, resolution, FPS, file size, and bitrate. Rows marked with a <strong>star</strong> are auto-selected as the recommended format &mdash; by default a 720p H.264 stream (falling back to 720p any codec, then the nearest lower resolution if 720p isn't available). Click any row to select a different format.
             </Typography>
           </li>
           <li>
@@ -144,7 +144,7 @@ const UserGuideDialog: React.FC<UserGuideDialogProps> = ({ open, onClose }) => {
           </li>
           <li>
             <Typography variant="body2">
-              <strong>Video Quality</strong>: choose a resolution preset (4K, 2K, 1080p, 720p, 480p, 360p, Best Available, Worst Available). Higher quality uses more disk space and bandwidth.
+              <strong>Video Quality</strong>: choose a resolution preset (4K, 2K, 1080p, 720p, 480p, 360p, Best Available, Worst Available). Each resolution prefers an H.264 stream at that height and falls back to any codec at that resolution, then to the nearest lower resolution if needed (the default is 720p H.264). Higher quality uses more disk space and bandwidth.
             </Typography>
           </li>
           <li>
