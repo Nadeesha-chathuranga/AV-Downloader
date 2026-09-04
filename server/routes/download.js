@@ -603,8 +603,9 @@ router.post('/', async (req, res) => {
       args.push('--extract-audio');
       args.push('--audio-format', format || 'mp3');
     } else {
+      // Quality dropdown: prefer H.264 at <=N, then any codec at <=N, then best.
       if (quality && quality !== 'best') {
-        args.push('-f', `best[height<=${quality}]/best`);
+        args.push('-f', `best[height<=${quality}][vcodec^=avc1]/best[height<=${quality}]/best`);
       } else {
         args.push('-f', 'b');
       }
