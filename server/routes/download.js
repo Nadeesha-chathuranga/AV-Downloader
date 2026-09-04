@@ -23,13 +23,13 @@ const DANGEROUS_FLAGS = [
 
 const loadConfig = () => {
   try {
-    if (fs.existsSync(CONFIG_PATH)) return fs.readJsonSync(CONFIG_PATH);
+    if (fs.existsSync(CONFIG_PATH())) return fs.readJsonSync(CONFIG_PATH());
   } catch (e) {}
   return { maxConcurrentDownloads: 3, downloadSpeedLimit: 0 };
 };
 
 const saveConfig = (config) => {
-  fs.writeJsonSync(CONFIG_PATH, config, { spaces: 2 });
+  fs.writeJsonSync(CONFIG_PATH(), config, { spaces: 2 });
 };
 
 const getDownloadsDir = () => {

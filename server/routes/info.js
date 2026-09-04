@@ -12,7 +12,7 @@ const { CONFIG_PATH } = require('../paths');
 
 const loadConfig = () => {
   try {
-    if (fs.existsSync(CONFIG_PATH)) return fs.readJsonSync(CONFIG_PATH);
+    if (fs.existsSync(CONFIG_PATH())) return fs.readJsonSync(CONFIG_PATH());
   } catch (e) {}
   return {};
 };
